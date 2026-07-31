@@ -14,26 +14,33 @@ derived from a real device reading — there is no simulated mode.
 ## Architecture
 
 ```
-┌──────────────────────┐     HTTPS      ┌───────────────────────┐
-│ ESP32 (Arduino)      │ ─────────────► │ FastAPI backend        │
-│ TCS34725 RGB sensor  │  /api/devices/ │  /api/users            │
-│ DHT22 temp/humidity  │  reading       │  /api/checkups         │
-│ Button + LED         │                │  /api/devices          │
-│ ArduinoJson over HTTP│                │  /api/shares           │
-└──────────────────────┘                └──────────┬────────────┘
-                                                    │ SQLAlchemy 2.0 (async)
-                                                    ▼
-                                   ┌────────────────────────────┐
-                                   │ PostgreSQL (prod) /         │
-                                   │ SQLite (dev) — Alembic      │
-                                   │ migrations                  │
-                                   └────────────────────────────┘
+┌────────────────────────┐          HTTPS          ┌───────────────────────────┐
+│ ESP32 (Arduino)        │  ─────────────────────► │ FastAPI backend           │
+│  TCS34725 RGB sensor   │   POST /api/devices/    │  /api/users              │
+│  DHT22 temp/humidity   │   reading               │  /api/checkups           │
+│  Button + status LED   │                         │  /api/devices            │
+│  ArduinoJson over HTTP │                         │  /api/shares             │
+└────────────────────────┘                         └─────────────┬─────────────┘
+                                                                 │ SQLAlchemy 2.0
+                                                                 │ (async ORM)
+                                                                 ▼
+                                                ┌──────────────────────────────┐
+                                                │ PostgreSQL 16 (prod)         │
+                                                │ SQLite (dev)                 │
+                                                │ Alembic migrations           │
+                                                └──────────────────────────────┘
 
-┌──────────────────────────┐    HTTPS    ┌───────────────────────┐
-│ React 18 SPA (Vite)      │ ─────────►  │ FastAPI backend        │
-│ Tailwind 3.4             │ /api (Nginx│  served by Nginx in     │
-│ served by Nginx          │ proxy)     │  docker-compose         │
-└──────────────────────────┘            └───────────────────────┘
+┌──────────────────────────┐   HTTPS   ┌───────────────────────────────┐
+│ Browser / React 18 SPA   │ ────────► │ Nginx (port 80)               │
+│ (Vite, Tailwind 3.4)     │  /api/*   │  serves the static SPA        │
+│                          │  proxy    │  proxies /api → backend:8000  │
+└──────────────────────────┘           └───────────────┬───────────────┘
+                                                       │ container network
+                                                       ▼
+                                        ┌───────────────────────────────┐
+                                        │ FastAPI backend (port 8000)   │
+                                        │ uvicorn                       │
+                                        └───────────────────────────────┘
 ```
 
 ## Repository layout
@@ -237,13 +244,21 @@ Reports are encrypted with Fernet (`encrypted_data`) before storage; the
 
 | Suite | Command |
 | ----- | ------- |
-| Backend (pytest, 23 tests) | `cd backend && .venv/Scripts/python -m pytest` |
+| Backend (pytest, 24 tests) | `cd backend && .venv/Scripts/python -m pytest` |
 | Frontend (Vitest + RTL, 20 tests) | `cd frontend && npm test` |
 | Frontend lint + typecheck | `cd frontend && npm run lint && npm run build` |
 | Firmware compile | `arduino-cli compile --fqbn esp32:esp32:esp32 arduino/doctordrobe` |
 
 CI (`.github/workflows/ci.yml`) runs all of the above plus Docker image
 builds on every push/PR to `main`.
+
+## Docs
+
+- [`BUILD.md`](BUILD.md) — step-by-step build tutorial for every component
+- [`docs/build-tutorial.html`](docs/build-tutorial.html) — the tutorial as a styled page
+- [`arduino/doctordrobe/BUILD_GUIDE.md`](arduino/doctordrobe/BUILD_GUIDE.md) — parts list, wiring, assembly
+- [`backend/README.md`](backend/README.md) — backend configuration
+- [`frontend/README.md`](frontend/README.md) — frontend scripts and structure
 
 ## Production deployment notes
 
