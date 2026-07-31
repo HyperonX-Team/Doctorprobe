@@ -6,7 +6,7 @@ models the strip's chromogen colour with Beer–Lambert reflectance
 chemistry into a panel of saliva-valid analytes (glucose, CRP, cortisol,
 pH, secretory IgA), adjusts for the user profile, encrypts the report at
 rest with Fernet, and presents it in a chat-style UI. Every checkup is
-derived from a real device reading — there is no simulated mode.
+derived from a real device reading.
 
 > **Not a medical device.** SaliNet (the sensor model) is trained on
 > synthetic data until you collect real calibration samples with the
