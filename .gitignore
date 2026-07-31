@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+doctordrobe.db
+.coverage
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Environment / secrets
+.env
+.env.local
+frontend/.env
+backend/.env
+
+# Hardware secrets
+arduino/**/secrets.h
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / scratch
+*.log
+vitest-out.txt

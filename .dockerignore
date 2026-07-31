@@ -1,0 +1,13 @@
+# Docker build context exclusions (root context used by frontend image).
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/doctordrobe.db
+**/.env
+**/.git
+**/coverage
+backend/.env
+arduino/**/secrets.h

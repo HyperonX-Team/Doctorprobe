@@ -1,0 +1,59 @@
+# Doctordrobe full stack: PostgreSQL + FastAPI backend + React frontend.
+# Start with:  cp .env.example .env && docker compose up --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: doctordrobe
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/doctordrobe
+      ENV: production
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      # Dev default so the stack boots without a .env; override in production.
+      FERNET_KEY: ${FERNET_KEY:-dev-key-change-me}
+      DEVICE_API_KEY: ${DEVICE_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:80","http://localhost:5173"]}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
