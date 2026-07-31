@@ -8,8 +8,10 @@ pH, secretory IgA), adjusts for the user profile, encrypts the report at
 rest with Fernet, and presents it in a chat-style UI. Every checkup is
 derived from a real device reading — there is no simulated mode.
 
-> **Not a medical device.** The sensor-to-biomarker mapping is a
-> calibration placeholder awaiting a trained model on real spectral data.
+> **Not a medical device.** SaliNet (the sensor model) is trained on
+> synthetic data generated from the documented colorimetric physics;
+> for real-world accuracy it must be retrained on lab-calibrated strip
+> data (see `backend/scripts/`).
 
 ## Architecture
 
@@ -183,9 +185,14 @@ curl -X POST http://localhost:8000/api/devices/reading \
 
 ### Report format
 
-Reports are derived from a physical device reading via a Beer-Lambert
-reflectance model (see `backend/app/services/analyzer.py`). The panel
-uses saliva-valid analytes with literature-plausible ranges:
+Reports are derived from a physical device reading via **SaliNet** — a
+small multi-output Random Forest that inverts the strip's colorimetric
+chemistry (Beer-Lambert reflectance + pad cross-talk + sensor noise,
+simulated in `backend/scripts/generate_synthetic_data.py` and trained
+by `backend/scripts/train_model.py`; held-out R² ≈ 0.56–0.76 per
+analyte). The closed-form Beer-Lambert calibration is the fallback when
+the model artifact is absent. The panel uses saliva-valid analytes with
+literature-plausible ranges:
 
 | Analyte | Signal | Unit | Reference range |
 | ------- | ------ | ---- | --------------- |

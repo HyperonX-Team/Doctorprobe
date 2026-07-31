@@ -51,8 +51,28 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Tests (23): `python -m pytest`. They run against an in-memory async
+Tests (27): `python -m pytest`. They run against an in-memory async
 SQLite database — no services required.
+
+## SaliNet sensor model
+
+The sensor-to-concentration mapping is a small multi-output Random
+Forest (`app/services/model/salinet.joblib` + `salinet.json` manifest),
+trained on synthetic spectral data that simulates the colorimetric
+physics of the saliva strip. The Beer-Lambert closed form in
+`app/services/analyzer.py` is the automatic fallback when the artifact
+is missing.
+
+Retrain (study the biology, tune the physics):
+
+```bash
+python scripts/generate_synthetic_data.py   # forward model -> data/sensor_training.csv
+python scripts/train_model.py               # fit forest, metrics, artifacts
+```
+
+`salinet.json` records features, targets, hyperparameters, and per-analyte
+R²/MAE. Replace the synthetic generator with a lab calibration dataset
+to get real-world accuracy.
 
 ## Docker
 

@@ -6,6 +6,9 @@ __pycache__/
 doctordrobe.db
 .coverage
 
+# Generated ML training data (regenerate via backend/scripts/)
+backend/data/
+
 # Node
 node_modules/
 dist/

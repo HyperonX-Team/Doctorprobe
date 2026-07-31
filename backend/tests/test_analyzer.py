@@ -168,3 +168,54 @@ def test_biomarkers_have_valid_states_and_ranges():
         assert marker["state"] in {"low", "normal", "high"}
         assert marker["ref_low"] < marker["ref_high"]
         assert marker["message"]
+
+
+def test_salinet_model_is_loaded():
+    """The committed SaliNet artifact is found and loads."""
+    loaded = analyzer._get_model()
+    assert loaded is not None
+    manifest = loaded["manifest"]
+    assert manifest["model_name"] == "SaliNet"
+    assert manifest["features"] == [
+        "rgb_r",
+        "rgb_g",
+        "rgb_b",
+        "temperature_c",
+        "humidity_pct",
+    ]
+    assert set(manifest["targets"]) == {"glucose", "crp", "cortisol", "siga"}
+
+
+def test_salinet_predictions_are_plausible():
+    """Model outputs stay inside the calibration envelope across a sweep."""
+    import math
+
+    for r in (0, 64, 128, 192, 255):
+        for g in (0, 128, 255):
+            reading = {
+                "rgb_r": r,
+                "rgb_g": g,
+                "rgb_b": 128,
+                "temperature_c": 25.0,
+                "humidity_pct": 50.0,
+            }
+            report = analyzer.generate_report(PROFILE, reading)
+            for marker in report["biomarkers"]:
+                if marker["name"] == "Salivary pH":
+                    continue  # ratio formula, clamped to [5.0, 8.5]
+                ref_low = marker["ref_low"]
+                ref_high = marker["ref_high"]
+                assert math.isfinite(marker["value"])
+                assert ref_low * 0.4 <= marker["value"] <= ref_high * 1.6
+
+
+def test_beer_lambert_fallback_without_model(monkeypatch):
+    """Without the SaliNet artifact the closed-form chemistry still works."""
+    monkeypatch.setattr(analyzer, "_get_model", lambda: None)
+    report = analyzer.generate_report(PROFILE, SENSOR)
+    assert report["overall_risk"] in {"low", "medium", "high"}
+    assert len(report["biomarkers"]) >= 4
+    glucose = next(
+        m for m in report["biomarkers"] if m["name"] == "Salivary Glucose"
+    )
+    assert 0.0 < glucose["value"]
