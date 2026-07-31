@@ -299,6 +299,12 @@ docker build -t doctordrobe-frontend:local -f frontend/Dockerfile .</code></pre>
 
       <section>
         <h2>5. ESP32 firmware</h2>
+        <p>
+          <strong>Building the physical device?</strong> The
+          <a href="../arduino/doctordrobe/BUILD_GUIDE.md">Hardware Build
+          Guide</a> has the full parts list (BOM), wiring diagram, and
+          step-by-step assembly.
+        </p>
         <h3>5.1 Toolchain</h3>
         <pre><code>arduino-cli core update-index
 arduino-cli core install esp32:esp32@2.0.14

@@ -136,6 +136,9 @@ docker build -t doctordrobe-frontend:local -f frontend/Dockerfile .
 
 ## 5. ESP32 firmware
 
+> **Building the physical device (parts list, wiring, assembly)?
+> See [`arduino/doctordrobe/BUILD_GUIDE.md`](arduino/doctordrobe/BUILD_GUIDE.md).**
+
 ### 5.1 Toolchain
 
 ```bash

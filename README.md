@@ -85,7 +85,10 @@ npm run dev        # http://localhost:5173
 
 ## Hardware setup
 
-See [`arduino/doctordrobe/README.md`](arduino/doctordrobe/README.md).
+Full parts list, wiring diagram, and assembly steps:
+[`arduino/doctordrobe/BUILD_GUIDE.md`](arduino/doctordrobe/BUILD_GUIDE.md)
+(~$35–45 in parts). Firmware details:
+[`arduino/doctordrobe/README.md`](arduino/doctordrobe/README.md).
 
 | Part | ESP32 pin |
 | ---- | --------- |

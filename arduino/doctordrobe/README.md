@@ -5,6 +5,10 @@ strip with the TCS34725 RGB colour sensor plus a DHT22
 temperature/humidity sensor, and posts the snapshot to the backend when
 the button is pressed.
 
+**Buying parts and assembling the physical device? See the
+[Hardware Build Guide](BUILD_GUIDE.md) — full BOM, wiring diagram, and
+step-by-step assembly.**
+
 ## Hardware
 
 | Part            | Connect to ESP32 (DevKit)        |
