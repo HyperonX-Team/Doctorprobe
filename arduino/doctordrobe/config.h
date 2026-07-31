@@ -36,7 +36,14 @@ const char* DEVICE_ID = "doctordrobe_demo_001";
 #define DHT_READ_DELAY_MS 2000  // DHT22 min read interval
 #define HTTP_TIMEOUT_MS 10000
 
-// API endpoint (relative to the backend root).
+// Calibration mode: a button press captures CAL_CAPTURES averaged
+// readings spaced CAL_INTERVAL_MS apart and posts one labeled sample.
+#define CAL_CAPTURES 10
+#define CAL_INTERVAL_MS 500
+#define CAL_ANALYTE_MAX_LEN 16
+
+// API endpoints (relative to the backend root).
 #define API_PATH "/api/devices/reading"
+#define CALIBRATION_PATH "/api/calibration/samples"
 
 #endif // CONFIG_H

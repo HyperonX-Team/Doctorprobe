@@ -176,8 +176,10 @@ def _predict_concentrations(
 ) -> dict[str, float] | None:
     """Predict analyte concentrations with SaliNet.
 
-    Returns None when the model artifact is unavailable, so the caller
-    can fall back to the closed-form Beer-Lambert calibration.
+    The artifact is a dict of per-analyte forests; each predicts its own
+    concentration from the same features. Returns None when the model is
+    unavailable, so the caller can fall back to the closed-form
+    Beer-Lambert calibration.
     """
     loaded = _get_model()
     if loaded is None:
@@ -190,10 +192,12 @@ def _predict_concentrations(
     )
     temperature = float(sensor_reading.get("temperature_c", 25.0))
     humidity = float(sensor_reading.get("humidity_pct", 50.0))
+    features = [[r, g, b, temperature, humidity]]
 
-    prediction = loaded["model"].predict([[r, g, b, temperature, humidity]])[0]
+    forests = loaded["model"]
     return {
-        name: float(value) for name, value in zip(_SALINET_TARGETS, prediction)
+        name: float(forests[name].predict(features)[0])
+        for name in _SALINET_TARGETS
     }
 
 

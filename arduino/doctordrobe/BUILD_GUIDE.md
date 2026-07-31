@@ -165,6 +165,27 @@ board "ESP32 Dev Module" + port, click Upload.)
 6. **LED stays on 5 s** → failure. Check the backend logs, `BACKEND_HOST`
    reachability, Wi-Fi, and the `X-API-Key` if enabled.
 
+### Calibration mode (retrain SaliNet on real data)
+
+Collect labeled samples to replace the simulated model with real
+measurements (protocol in the root README, "Calibration"):
+
+```bash
+# Serial monitor at 115200 baud:
+CAL glucose 2.5     # arm: label for the next capture
+# ...place a control strip under the sensor and press the button...
+# the device averages 10 readings and posts one labeled sample
+CAL glucose 5.0     # next level
+CALCLEAR            # disarm without capturing
+```
+
+Then export and retrain:
+
+```bash
+curl -o backend/data/real_training.csv http://localhost:8000/api/calibration/export
+cd backend && python scripts/train_model.py
+```
+
 ---
 
 ## 8. Enclosure (optional)

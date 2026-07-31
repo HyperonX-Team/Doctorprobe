@@ -1,26 +1,12 @@
 {
   "model_name": "SaliNet",
-  "model_version": "1.0.0",
-  "algorithm": "RandomForestRegressor (multi-output)",
+  "model_version": "2.0.0",
+  "algorithm": "RandomForestRegressor (one forest per analyte)",
   "hyperparameters": {
-    "bootstrap": true,
-    "ccp_alpha": 0.0,
-    "criterion": "squared_error",
-    "max_depth": 12,
-    "max_features": 1.0,
-    "max_leaf_nodes": null,
-    "max_samples": null,
-    "min_impurity_decrease": 0.0,
-    "min_samples_leaf": 5,
-    "min_samples_split": 2,
-    "min_weight_fraction_leaf": 0.0,
-    "monotonic_cst": null,
-    "n_estimators": 200,
-    "n_jobs": -1,
-    "oob_score": false,
-    "random_state": 42,
-    "verbose": 0,
-    "warm_start": false
+    "n_estimators": 150,
+    "max_depth": 11,
+    "min_samples_leaf": 8,
+    "random_state": 42
   },
   "features": [
     "rgb_r",
@@ -35,28 +21,45 @@
     "cortisol",
     "siga"
   ],
-  "trained_at": "2026-07-31T22:56:02.173539+00:00",
-  "data": {
-    "source": "scripts/generate_synthetic_data.py",
-    "n_samples": 20000,
-    "seed": 42
+  "trained_at": "2026-07-31T23:17:18.019499+00:00",
+  "provenance": {
+    "glucose": {
+      "source": "synthetic",
+      "n_samples": 20000,
+      "n_real": 0
+    },
+    "crp": {
+      "source": "synthetic",
+      "n_samples": 20000,
+      "n_real": 0
+    },
+    "cortisol": {
+      "source": "synthetic",
+      "n_samples": 20000,
+      "n_real": 0
+    },
+    "siga": {
+      "source": "synthetic",
+      "n_samples": 20000,
+      "n_real": 0
+    }
   },
   "metrics": {
     "glucose": {
-      "r2": 0.7349,
-      "mae": 0.5042
+      "r2": 0.7497,
+      "mae": 0.4961
     },
     "crp": {
-      "r2": 0.7548,
-      "mae": 0.1041
+      "r2": 0.917,
+      "mae": 0.0728
     },
     "cortisol": {
-      "r2": 0.6732,
-      "mae": 0.0676
+      "r2": 0.8871,
+      "mae": 0.0451
     },
     "siga": {
-      "r2": 0.5602,
-      "mae": 2.3777
+      "r2": 0.5636,
+      "mae": 2.3717
     }
   }
 }

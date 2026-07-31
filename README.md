@@ -9,9 +9,9 @@ rest with Fernet, and presents it in a chat-style UI. Every checkup is
 derived from a real device reading — there is no simulated mode.
 
 > **Not a medical device.** SaliNet (the sensor model) is trained on
-> synthetic data generated from the documented colorimetric physics;
-> for real-world accuracy it must be retrained on lab-calibrated strip
-> data (see `backend/scripts/`).
+> synthetic data until you collect real calibration samples with the
+> firmware's calibration mode — see the [Calibration protocol](#calibration-protocol)
+> below.
 
 ## Architecture
 
@@ -222,6 +222,41 @@ literature-plausible ranges:
 
 Reports are encrypted with Fernet (`encrypted_data`) before storage; the
 `GET /api/checkups/{id}` endpoint returns the decrypted payload.
+
+### Calibration (make SaliNet real)
+
+SaliNet ships trained on simulated strip chemistry. To retrain it on
+**real measurements**, collect labeled samples and rerun the trainer:
+
+1. **Make control standards** with known concentrations:
+   - **Salivary pH** needs no calibration (ratio measurement).
+   - **Glucose** — aqueous standards: dissolve pure dextrose powder in
+     distilled water at known concentrations (e.g. 0.5 g in 1 L = 50
+     mg/dL; weigh on a 0.01 g scale, mix well). Use high-sensitivity
+     glucose strips; cover at least 5 concentration levels.
+   - **CRP / cortisol / sIgA** — commercial immunoassay control kits or
+     lab-prepared standards (home chemistry for these is unreliable;
+     plan for a lab session).
+2. **Capture samples.** Put a strip under the sensor, arm the firmware:
+   `CAL <analyte> <concentration>` in the serial monitor (e.g.
+   `CAL glucose 2.5`), then press the button — the device averages 10
+   readings and posts one labeled sample. Repeat ≥ 15 samples per level
+   across ≥ 5 levels per analyte.
+3. **Export and retrain:**
+   ```bash
+   curl -o backend/data/real_training.csv http://localhost:8000/api/calibration/export
+   cd backend && python scripts/train_model.py
+   ```
+   The trainer uses real samples per analyte (≥ 15) and falls back to
+   synthetic data only for analytes you have not calibrated. The
+   `salinet.json` manifest records provenance and per-analyte R²/MAE.
+4. **Verify** — run a checkup on a known control; the reported value
+   should match the standard within the model's MAE.
+5. Clear the samples afterwards: `DELETE /api/calibration/samples`.
+
+Endpoints: `POST /api/calibration/samples` (device, `X-API-Key` when
+enabled), `GET /api/calibration/samples`, `GET /api/calibration/export`,
+`DELETE /api/calibration/samples`.
 
 ## Security notes
 

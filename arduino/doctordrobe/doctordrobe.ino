@@ -157,9 +157,9 @@ static void configureTLS() {
 }
 #endif
 
-// POST the reading to the backend. Returns the HTTP status code, or
-// -1 on transport failure.
-static int sendDeviceReading(JsonDocument& doc) {
+// POST a JSON document to a backend path. Returns the HTTP status
+// code, or -1 on transport failure.
+static int postToBackend(JsonDocument& doc, const char* path) {
 #if USE_HTTPS
   configureTLS();
   WiFiClient& client = tlsClient;
@@ -173,7 +173,7 @@ static int sendDeviceReading(JsonDocument& doc) {
   http.setReuse(false);
 
   String url = String(USE_HTTPS ? "https://" : "http://") +
-               BACKEND_HOST + ":" + BACKEND_PORT + API_PATH;
+               BACKEND_HOST + ":" + BACKEND_PORT + path;
   Serial.println("[http] POST " + url);
 
   if (!http.begin(client, url)) {
@@ -206,6 +206,99 @@ static int sendDeviceReading(JsonDocument& doc) {
 
   http.end();
   return statusCode;
+}
+
+// ------------------------------------------------------------------
+// Calibration mode
+//
+// Serial command:  CAL <analyte> <concentration>
+//                  e.g. CAL glucose 3.5   (units per backend schema)
+//                  CALCLEAR  clears the armed calibration
+// When armed, the next button press captures CAL_CAPTURES averaged
+// sensor readings and posts one labeled sample to /api/calibration/
+// samples. See the calibration protocol in the project README.
+// ------------------------------------------------------------------
+
+static char calAnalyte[CAL_ANALYTE_MAX_LEN] = {0};
+static float calConcentration = -1.0f;
+
+static void handleSerialCommands() {
+  while (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.startsWith("CAL ")) {
+      int space = line.indexOf(' ', 4);
+      if (space > 4) {
+        String analyte = line.substring(4, space);
+        float value = line.substring(space + 1).toFloat();
+        if (value > 0.0f && analyte.length() < CAL_ANALYTE_MAX_LEN) {
+          analyte.toCharArray(calAnalyte, sizeof(calAnalyte));
+          calConcentration = value;
+          Serial.printf("[cal] armed: %s = %.3f — press the button to capture\n",
+                        calAnalyte, calConcentration);
+          return;
+        }
+      }
+      Serial.println("[cal] usage: CAL <analyte> <concentration>");
+    } else if (line == "CALCLEAR") {
+      calAnalyte[0] = '\0';
+      calConcentration = -1.0f;
+      Serial.println("[cal] cleared");
+    }
+  }
+}
+
+// Average CAL_CAPTURES readings of a control standard and serialise
+// one labeled sample. Returns false on sensor failure.
+static bool captureCalibrationSample(JsonDocument& doc) {
+  long rSum = 0, gSum = 0, bSum = 0;
+  float tSum = 0.0f, hSum = 0.0f;
+  bool ok = true;
+
+  for (int i = 0; i < CAL_CAPTURES; i++) {
+    uint16_t r, g, b, c;
+    tcs.getRawData(&r, &g, &b, &c);
+    if (c == 0) {
+      ok = false;
+      break;
+    }
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    if (isnan(temperature) || isnan(humidity)) {
+      temperature = -1.0f;
+      humidity = -1.0f;
+    }
+    rSum += r;
+    gSum += g;
+    bSum += b;
+    tSum += temperature;
+    hSum += humidity;
+    if (i < CAL_CAPTURES - 1) {
+      delay(CAL_INTERVAL_MS);
+    }
+  }
+  if (!ok) {
+    return false;
+  }
+
+  // Average then normalize the clear channel (same as readSensors).
+  float r = rSum / (float)CAL_CAPTURES;
+  float g = gSum / (float)CAL_CAPTURES;
+  float b = bSum / (float)CAL_CAPTURES;
+  float c = (r + g + b) / 3.0f;  // clear is not exposed; approximate
+  if (c < 1.0f) {
+    return false;
+  }
+
+  doc["device_id"] = DEVICE_ID;
+  doc["analyte"] = calAnalyte;
+  doc["concentration"] = calConcentration;
+  doc["rgb_r"] = rgbToInt(r / c);
+  doc["rgb_g"] = rgbToInt(g / c);
+  doc["rgb_b"] = rgbToInt(b / c);
+  doc["temperature_c"] = tSum / (float)CAL_CAPTURES;
+  doc["humidity_pct"] = hSum / (float)CAL_CAPTURES;
+  return true;
 }
 
 // ------------------------------------------------------------------
@@ -244,7 +337,7 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println();
-  Serial.println("[boot] Doctordrobe firmware 1.0.0");
+  Serial.println("[boot] Doctordrobe firmware 1.1.0 (calibration mode)");
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_LED, OUTPUT);
@@ -266,16 +359,47 @@ void loop() {
     syncTimeViaNTP();
   }
 
+  handleSerialCommands();
+
   if (!isButtonPressed()) {
     delay(20);
     return;
   }
 
-  Serial.println("[btn] button pressed — taking reading");
-
   if (!sensorsInitialised) {
     initialiseSensors();
   }
+
+  // Calibration capture takes priority over a normal reading.
+  if (calConcentration > 0.0f) {
+    Serial.printf("[cal] capturing %d readings for %s = %.3f...\n",
+                  CAL_CAPTURES, calAnalyte, calConcentration);
+    JsonDocument doc;
+    if (!captureCalibrationSample(doc)) {
+      Serial.println("[cal] sensor error during capture; LED on for 5s");
+      digitalWrite(PIN_LED, HIGH);
+      delay(5000);
+      digitalWrite(PIN_LED, LOW);
+      return;
+    }
+    int statusCode = postToBackend(doc, CALIBRATION_PATH);
+    if (statusCode == 200 || statusCode == 201) {
+      Serial.println("[cal] sample accepted — blinking LED 3x");
+      blinkLed(3, 300);
+    } else {
+      Serial.printf("[cal] sample rejected (%d) — LED on for 5s\n", statusCode);
+      digitalWrite(PIN_LED, HIGH);
+      delay(5000);
+      digitalWrite(PIN_LED, LOW);
+    }
+    // One shot per CAL command; re-arm for the next concentration.
+    calAnalyte[0] = '\0';
+    calConcentration = -1.0f;
+    Serial.println("[cal] disarmed — send another CAL command for the next sample");
+    return;
+  }
+
+  Serial.println("[btn] button pressed — taking reading");
 
   JsonDocument doc;
   if (!readSensors(doc)) {
@@ -286,7 +410,7 @@ void loop() {
     return;
   }
 
-  int statusCode = sendDeviceReading(doc);
+  int statusCode = postToBackend(doc, API_PATH);
 
   if (statusCode == 200 || statusCode == 201) {
     Serial.println("[ok] reading accepted — blinking LED 3x");

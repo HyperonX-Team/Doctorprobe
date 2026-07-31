@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import checkups, devices, shares, users
+from app.api.routes import calibration, checkups, devices, shares, users
 from app.core.config import get_settings
 from app.core.logging import RequestContextMiddleware, setup_logging
 
@@ -78,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(checkups.router)
     app.include_router(devices.router)
     app.include_router(shares.router)
+    app.include_router(calibration.router)
 
     return app
 
