@@ -1,8 +1,8 @@
-// Checkup page tests: device status banner, simulation flow, and the 409
-// device-mode error path. The API client module is mocked so no network
-// calls escape the test.
+// Checkup page tests: device status banner, scan flow, and the 409
+// no-device-reading error path. The API client module is mocked so no
+// network calls escape the test.
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -103,37 +103,13 @@ describe('Checkup', () => {
     expect(await screen.findByText(/device connected/i)).toBeInTheDocument();
   });
 
-  it('runs the simulation flow and navigates to the report', async () => {
-    createCheckupMock.mockResolvedValue(mockCreated);
-
-    // Fake timers BEFORE mounting so the progress interval is faked.
-    // fireEvent (not userEvent) is used because user-event's async waits
-    // deadlock under fake timers.
-    vi.useFakeTimers();
+  it('has no simulated mode', async () => {
     renderCheckup();
-
-    // Flush the session restore + initial status poll.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50);
-    });
-
-    fireEvent.click(screen.getByTestId('checkup-simulate'));
-    expect(screen.getByTestId('checkup-progress')).toBeInTheDocument();
-
-    // Advance past the 15s animation; completion triggers the API call.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(16_000);
-    });
-    vi.useRealTimers();
-
-    expect(createCheckupMock).toHaveBeenCalledWith({
-      user_id: mockUser.id,
-      use_device_reading: false,
-    });
-    expect(await screen.findByText('REPORT PAGE')).toBeInTheDocument();
+    expect(await screen.findByTestId('checkup-scan')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkup-simulate')).not.toBeInTheDocument();
   });
 
-  it('sends use_device_reading=true when scanning with the device', async () => {
+  it('creates a checkup from the device reading and navigates to the report', async () => {
     const user = userEvent.setup();
     createCheckupMock.mockResolvedValue(mockCreated);
 
@@ -141,14 +117,12 @@ describe('Checkup', () => {
     await user.click(await screen.findByTestId('checkup-scan'));
 
     await waitFor(() => {
-      expect(createCheckupMock).toHaveBeenCalledWith({
-        user_id: mockUser.id,
-        use_device_reading: true,
-      });
+      expect(createCheckupMock).toHaveBeenCalledWith({ user_id: mockUser.id });
     });
+    expect(await screen.findByText('REPORT PAGE')).toBeInTheDocument();
   });
 
-  it('handles a 409 from device mode with retry', async () => {
+  it('handles a 409 when no device reading exists, with retry', async () => {
     const user = userEvent.setup();
     createCheckupMock.mockRejectedValue(
       new ApiError(

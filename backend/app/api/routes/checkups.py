@@ -1,4 +1,4 @@
-"""Checkup endpoints: create (simulated or device-driven), read, delete, share."""
+"""Checkup endpoints: create (device-driven), read, delete, share."""
 
 from __future__ import annotations
 
@@ -63,17 +63,15 @@ def _assert_ownership(checkup: Checkup, user_id: uuid.UUID) -> None:
 async def create_checkup(
     payload: CheckupCreate, db: AsyncSession = Depends(get_db)
 ) -> CheckupCreateResponse:
-    """Run a biomarker analysis for a user.
+    """Analyse the user's latest device reading.
 
-    With ``use_device_reading`` the latest physical reading is consumed;
-    without it, a pure simulation runs. The full report is encrypted at
-    rest.
+    Reports are always derived from physical sensor data; when the user's
+    device has never posted a reading, a 409 is returned. The full report
+    is encrypted at rest.
     """
     user = await _get_user_or_404(db, payload.user_id)
     try:
-        checkup = await ReportService.create_checkup(
-            db, user, payload.use_device_reading
-        )
+        checkup = await ReportService.create_checkup(db, user)
         await db.commit()
         await db.refresh(checkup)
     except HTTPException:

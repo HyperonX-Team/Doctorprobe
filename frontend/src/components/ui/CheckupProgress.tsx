@@ -1,5 +1,5 @@
 // CheckupProgress — animated multi-step progress bar shown while a
-// simulated analysis "runs".
+// device analysis runs.
 
 import { useEffect, useState } from 'react';
 

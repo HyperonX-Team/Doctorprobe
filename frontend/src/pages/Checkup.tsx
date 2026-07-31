@@ -1,7 +1,8 @@
-// Checkup — run a new analysis. Two paths:
-//   1. "Simulate" — animated progress, then POST with use_device_reading=false.
-//   2. "Scan with Device" — POST with use_device_reading=true; 409 is handled
-//      with a clear message and Retry button.
+// Checkup — run a new analysis from a physical device reading.
+//
+// Every checkup is derived from the latest reading the ESP32 has posted
+// to /api/devices/reading. There is no simulated mode; if the device has
+// never reported, the backend returns 409 and the UI offers retry.
 
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,15 +12,9 @@ import { useDeviceStatus } from '../hooks/useDeviceStatus';
 import { getErrorMessage } from '../utils/errors';
 import CheckupProgress from '../components/ui/CheckupProgress';
 import DeviceStatus from '../components/ui/DeviceStatus';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 type Phase =
-  | { kind: 'idle' }
-  | { kind: 'simulating' }
-  | { kind: 'creating'; label: string }
-  | { kind: 'error'; message: string };
-
-const SIMULATION_MS = 15_000;
+  { kind: 'idle' } | { kind: 'creating' } | { kind: 'error'; message: string };
 
 export default function Checkup() {
   const { user } = useUser();
@@ -27,31 +22,21 @@ export default function Checkup() {
   const deviceStatus = useDeviceStatus(user?.device_id);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
 
-  const create = useCallback(
-    async (useDeviceReading: boolean) => {
-      if (!user) {
-        return;
-      }
-      setPhase({ kind: 'creating', label: 'Finalizing your report…' });
-      try {
-        const checkup = await api.createCheckup({
-          user_id: user.id,
-          use_device_reading: useDeviceReading,
-        });
-        navigate(`/report/${checkup.id}`);
-      } catch (err) {
-        setPhase({ kind: 'error', message: getErrorMessage(err) });
-      }
-    },
-    [user, navigate],
-  );
-
-  const handleSimulate = () => {
-    setPhase({ kind: 'simulating' });
-  };
+  const create = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+    setPhase({ kind: 'creating' });
+    try {
+      const checkup = await api.createCheckup({ user_id: user.id });
+      navigate(`/report/${checkup.id}`);
+    } catch (err) {
+      setPhase({ kind: 'error', message: getErrorMessage(err) });
+    }
+  }, [user, navigate]);
 
   const handleScan = () => {
-    void create(true);
+    void create();
   };
 
   if (!user) {
@@ -63,8 +48,9 @@ export default function Checkup() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">New checkup</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Analyze your saliva strip with the Doctordrobe device, or run a simulated
-          analysis to explore the app.
+          Place a fresh saliva strip under the sensor on your Doctordrobe device and
+          press its button, then scan below. Reports are derived from the physical
+          reading — there is no simulated mode.
         </p>
       </div>
 
@@ -75,42 +61,24 @@ export default function Checkup() {
       />
 
       {phase.kind === 'idle' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={handleSimulate}
-            data-testid="checkup-simulate"
-            className="rounded-xl bg-brand-600 px-5 py-6 text-left text-sm font-semibold text-white shadow hover:bg-brand-700"
-          >
-            Simulate
-            <span className="mt-1 block text-xs font-normal text-brand-100">
-              No hardware required — runs the demo biomarker pipeline.
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleScan}
-            data-testid="checkup-scan"
-            className="rounded-xl border border-slate-200 bg-white px-5 py-6 text-left text-sm font-semibold text-slate-800 shadow hover:bg-slate-50"
-          >
-            Scan with Device
-            <span className="mt-1 block text-xs font-normal text-slate-500">
-              Uses the latest reading from your ESP32 device.
-            </span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleScan}
+          data-testid="checkup-scan"
+          className="w-full rounded-xl border border-slate-200 bg-white px-5 py-6 text-left text-sm font-semibold text-slate-800 shadow hover:bg-slate-50"
+        >
+          Scan with Device
+          <span className="mt-1 block text-xs font-normal text-slate-500">
+            Uses the latest reading from your ESP32 device.
+          </span>
+        </button>
       )}
 
-      {phase.kind === 'simulating' && (
+      {phase.kind === 'creating' && (
         <div className="flex justify-center rounded-xl border border-slate-200 bg-white p-8">
-          <CheckupProgress
-            durationMs={SIMULATION_MS}
-            onComplete={() => void create(false)}
-          />
+          <CheckupProgress durationMs={4000} onComplete={() => undefined} />
         </div>
       )}
-
-      {phase.kind === 'creating' && <LoadingSpinner label={phase.label} />}
 
       {phase.kind === 'error' && (
         <div
@@ -129,15 +97,6 @@ export default function Checkup() {
             >
               Retry
             </button>
-            {phase.message.toLowerCase().includes('device reading') && (
-              <button
-                type="button"
-                onClick={() => void create(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
-              >
-                Run simulation instead
-              </button>
-            )}
           </div>
         </div>
       )}

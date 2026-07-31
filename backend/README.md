@@ -21,7 +21,7 @@ app/
   core/              config (env-driven), security, logging
   db/                base, async session, models
   schemas/           Pydantic v2 request/response models
-  services/          biomarker simulator + report orchestration
+  services/          deterministic biomarker analyzer + report orchestration
   utils/             crypto, map_range
 tests/               pytest + pytest-asyncio (in-memory SQLite)
 ```

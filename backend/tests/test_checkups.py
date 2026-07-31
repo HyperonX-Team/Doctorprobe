@@ -1,4 +1,4 @@
-"""Checkup endpoint tests: simulation mode, device mode, sharing."""
+"""Checkup endpoint tests: device-driven creation, reading, sharing."""
 
 import pytest
 
@@ -32,13 +32,26 @@ async def _post_reading(client, **overrides):
     return await client.post("/api/devices/reading", json=payload)
 
 
+async def _create_checkup(client, user_id):
+    return await client.post("/api/checkups", json={"user_id": user_id})
+
+
 @pytest.mark.asyncio
-async def test_create_checkup_simulation_mode(client, created_user):
-    """Simulated checkup returns a full, valid report."""
-    response = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+async def test_create_checkup_requires_device_reading(client, created_user):
+    """409 when a checkup is requested but the device has never reported."""
+    response = await _create_checkup(client, created_user["id"])
+    assert response.status_code == 409
+    body = response.json()
+    assert "device" in body["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_checkup_from_device_reading(client, created_user):
+    """Succeeds once a reading has been posted by the device."""
+    reading = await _post_reading(client)
+    assert reading.status_code == 201, reading.text
+
+    response = await _create_checkup(client, created_user["id"])
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["user_id"] == created_user["id"]
@@ -50,10 +63,8 @@ async def test_create_checkup_simulation_mode(client, created_user):
 @pytest.mark.asyncio
 async def test_get_checkup_decrypts_report(client, created_user):
     """GET /api/checkups/{id} returns the decrypted biomarker report."""
-    created = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+    await _post_reading(client)
+    created = await _create_checkup(client, created_user["id"])
     checkup_id = created.json()["id"]
 
     response = await client.get(
@@ -74,40 +85,13 @@ async def test_get_checkup_decrypts_report(client, created_user):
 async def test_get_checkup_forbidden_for_other_user(client, created_user):
     """A user cannot read another user's checkup."""
     other = await _create_user(client, device_id="doctordrobe_demo_002")
-    created = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+    await _post_reading(client)
+    created = await _create_checkup(client, created_user["id"])
     checkup_id = created.json()["id"]
 
     response = await client.get(f"/api/checkups/{checkup_id}?user_id={other['id']}")
     assert response.status_code == 403
     assert response.json() == {"detail": "Checkup does not belong to this user"}
-
-
-@pytest.mark.asyncio
-async def test_create_checkup_with_device_reading_conflict(client, created_user):
-    """409 when a device checkup is requested but no reading exists."""
-    response = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": True},
-    )
-    assert response.status_code == 409
-    body = response.json()
-    assert "device" in body["detail"].lower()
-
-
-@pytest.mark.asyncio
-async def test_create_checkup_with_device_reading(client, created_user):
-    """Succeeds once a reading has been posted by the device."""
-    reading = await _post_reading(client)
-    assert reading.status_code == 201, reading.text
-
-    response = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": True},
-    )
-    assert response.status_code == 201, response.text
 
 
 @pytest.mark.asyncio
@@ -150,10 +134,8 @@ async def test_device_latest_returns_newest(client, created_user):
 @pytest.mark.asyncio
 async def test_delete_checkup(client, created_user):
     """DELETE /api/checkups/{id} works with a body or query param."""
-    created = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+    await _post_reading(client)
+    created = await _create_checkup(client, created_user["id"])
     checkup_id = created.json()["id"]
 
     response = await client.request(
@@ -170,10 +152,7 @@ async def test_delete_checkup(client, created_user):
     assert response.status_code == 404
 
     # Query-param variant.
-    created2 = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+    created2 = await _create_checkup(client, created_user["id"])
     response = await client.delete(
         f"/api/checkups/{created2.json()['id']}?user_id={created_user['id']}"
     )
@@ -184,10 +163,8 @@ async def test_delete_checkup(client, created_user):
 @pytest.mark.asyncio
 async def test_share_checkup_awards_tokens_once(client, created_user):
     """Sharing awards tokens exactly once; re-sharing conflicts."""
-    created = await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
-    )
+    await _post_reading(client)
+    created = await _create_checkup(client, created_user["id"])
     checkup_id = created.json()["id"]
 
     response = await client.post(

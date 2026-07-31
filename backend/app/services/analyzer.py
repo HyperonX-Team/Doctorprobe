@@ -1,17 +1,19 @@
-"""Biomarker simulator.
+"""Biomarker analysis pipeline.
 
-Produces a deterministic pseudo-report for a user on a given day.
-Determinism is achieved by seeding a ``random.Random`` instance with the
-user id + calendar date, so repeated analyses on the same day agree while
-results drift over time. Raw sensor values (RGB/temperature/humidity) are
-mapped onto biomarker base values via :func:`app.utils.map_range.map_range`.
+Transforms a real device reading (RGB colour channels, temperature,
+humidity) plus the user profile into a biomarker report.
+
+Fully deterministic: the same sensor snapshot and profile always produce
+the same report. There is no random sampling and no simulated data — a
+checkup can only be created from a physical device reading.
+
+The sensor-to-biomarker mapping below is a linear calibration
+placeholder; it is meant to be replaced by a trained ML model once real
+spectral calibration data is available.
 """
 
 from __future__ import annotations
 
-import hashlib
-import random
-from datetime import date
 from typing import Any
 
 from app.utils.map_range import map_range
@@ -34,16 +36,10 @@ _RISK_WEIGHTS = {
 }
 
 
-def _seed_from(user_key: str, today: date) -> int:
-    """Hash the user identity + date into a stable integer seed."""
-    digest = hashlib.sha256(f"{user_key}:{today.isoformat()}".encode("utf-8"))
-    return int(digest.hexdigest()[:16], 16)
-
-
 def _sensor_to_bases(sensor_reading: dict[str, Any]) -> dict[str, float]:
     """Map raw sensor values onto biomarker base values.
 
-    This mapping is arbitrary and used for demonstration. Replace with a
+    This mapping is a linear calibration placeholder. Replace with a
     trained ML model once real spectral calibration data is available.
     """
     r, g, b = (
@@ -69,13 +65,13 @@ def _sensor_to_bases(sensor_reading: dict[str, Any]) -> dict[str, float]:
     return bases
 
 
-def _profile_deltas(profile: dict[str, Any]) -> dict[str, float]:
-    """Compute biomarker adjustments from the user profile.
+def _profile_adjustments(profile: dict[str, Any]) -> dict[str, float]:
+    """Compute deterministic biomarker adjustments from the user profile.
 
     - Older age shifts glucose/CRP slightly upward.
     - Higher activity level raises HDL and lowers CRP.
     - Higher BMI (derived from height/weight) raises glucose.
-    - Sex nudges iron and HDL (demonstration purposes only).
+    - Sex nudges iron and HDL (calibration placeholder).
     """
     deltas: dict[str, float] = {}
     age = int(profile.get("age", 35))
@@ -115,10 +111,7 @@ def _state_for(value: float, ref_low: float, ref_high: float) -> str:
     return "normal"
 
 
-def _build_biomarker(
-    key: str,
-    value: float,
-) -> dict[str, Any]:
+def _build_biomarker(key: str, value: float) -> dict[str, Any]:
     """Build the public biomarker record with a human-friendly message."""
     unit, ref_low, ref_high = _REFERENCE_RANGES[key]
     state = _state_for(value, ref_low, ref_high)
@@ -151,39 +144,29 @@ def _build_biomarker(
 
 def generate_report(
     profile: dict[str, Any],
-    sensor_reading: dict[str, Any] | None = None,
-    user_key: str = "demo",
-    today: date | None = None,
+    sensor_reading: dict[str, Any],
 ) -> dict[str, Any]:
-    """Generate a deterministic demo report.
+    """Generate a deterministic report from a real device reading.
 
     Args:
         profile: User fields (age, sex, height_cm, weight_kg, activity_level).
-        sensor_reading: Optional raw device snapshot; when present its
-            mapped values replace the random base values.
-        user_key: Stable identifier (user UUID) used for the daily seed.
-        today: Overridable clock for deterministic tests.
+        sensor_reading: Raw device snapshot (rgb_r, rgb_g, rgb_b,
+            temperature_c, humidity_pct). Required — the report is always
+            derived from physical sensor data.
 
     Returns:
         Dict with ``overall_risk``, ``summary``, ``text_summary`` and
         ``biomarkers``.
     """
-    today = today or date.today()
-    rng = random.Random(_seed_from(user_key, today))
+    if not sensor_reading:
+        raise ValueError("sensor_reading is required to generate a report")
 
-    bases = _sensor_to_bases(sensor_reading) if sensor_reading else {}
-    deltas = _profile_deltas(profile)
+    bases = _sensor_to_bases(sensor_reading)
+    deltas = _profile_adjustments(profile)
 
     biomarkers = []
     for key, (unit, ref_low, ref_high) in _REFERENCE_RANGES.items():
-        if key in bases:
-            value = bases[key]
-        else:
-            # Draw a plausible value around the midpoint of the range.
-            midpoint = (ref_low + ref_high) / 2
-            span = ref_high - ref_low
-            value = midpoint + rng.uniform(-0.25, 0.25) * span
-        value += deltas.get(key, 0.0)
+        value = bases[key] + deltas.get(key, 0.0)
         value = max(ref_low * 0.4, min(ref_high * 1.6, value))
         biomarkers.append(_build_biomarker(key, value))
 
@@ -205,22 +188,20 @@ def generate_report(
     ]
     if out_of_range:
         text_summary = (
-            f"Analysis complete for {today.strftime('%B %d, %Y')}. "
+            "Analysis based on your latest Doctordrobe device reading. "
             f"Overall risk: {overall_risk.upper()}. "
-            f"Attention needed on: {', '.join(out_of_range)}. "
-            f"Results are deterministic for this day — run again tomorrow "
-            f"for an updated picture."
+            f"Attention needed on: {', '.join(out_of_range)}."
         )
     else:
         text_summary = (
-            f"Analysis complete for {today.strftime('%B %d, %Y')}. "
+            "Analysis based on your latest Doctordrobe device reading. "
             f"Overall risk: {overall_risk.upper()}. "
-            f"All markers are within their reference ranges. "
-            f"Continue your healthy routine and check back tomorrow."
+            "All markers are within their reference ranges. "
+            "Continue your healthy routine and check again tomorrow."
         )
 
     summary = (
-        f"{today.strftime('%Y-%m-%d')} · Overall risk {overall_risk.upper()} · "
+        f"Device reading · Overall risk {overall_risk.upper()} · "
         f"{len([m for m in biomarkers if m['state'] != 'normal'])} marker(s) out of range"
     )
 

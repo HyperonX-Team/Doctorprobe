@@ -1,4 +1,4 @@
-"""Linear value mapping helper used by the biomarker simulator."""
+"""Linear value mapping helper used by the biomarker analyzer."""
 
 from __future__ import annotations
 

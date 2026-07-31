@@ -38,7 +38,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description=(
             "Home health analyzer API. Produces encrypted biomarker "
-            "reports from simulated or device-derived spectroscopy."
+            "reports from physical device readings."
         ),
         lifespan=lifespan,
     )

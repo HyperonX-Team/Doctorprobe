@@ -82,10 +82,25 @@ async def test_list_user_checkups_empty_and_after_creation(client, created_user)
     assert response.status_code == 200
     assert response.json() == []
 
-    await client.post(
-        "/api/checkups",
-        json={"user_id": created_user["id"], "use_device_reading": False},
+    # A reading is required before a checkup can be created.
+    reading = await client.post(
+        "/api/devices/reading",
+        json={
+            "device_id": "doctordrobe_demo_001",
+            "rgb_r": 120,
+            "rgb_g": 200,
+            "rgb_b": 60,
+            "temperature_c": 24.5,
+            "humidity_pct": 45.0,
+        },
     )
+    assert reading.status_code == 201
+
+    created = await client.post(
+        "/api/checkups", json={"user_id": created_user["id"]}
+    )
+    assert created.status_code == 201
+
     response = await client.get(f"/api/users/{created_user['id']}/checkups")
     assert response.status_code == 200
     items = response.json()

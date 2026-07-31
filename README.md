@@ -2,12 +2,14 @@
 
 A home-health analyzer: an ESP32 sensor device, a FastAPI backend, and a
 React SPA. Saliva strips are read by an RGB spectrometer; the backend
-maps the raw sensor data to a panel of biomarkers (demonstration mapping —
-architecturally ready for a trained ML model), encrypts the report at
-rest with Fernet, and presents it in a chat-style UI.
+transforms the physical sensor reading and the user profile into a
+biomarker panel via a deterministic calibration mapping (architecturally
+ready for a trained ML model), encrypts the report at rest with Fernet,
+and presents it in a chat-style UI. Every checkup is derived from a real
+device reading — there is no simulated mode.
 
-> **Not a medical device.** All biomarker values are simulated for
-> demonstration purposes.
+> **Not a medical device.** The sensor-to-biomarker mapping is a
+> calibration placeholder awaiting a trained model on real spectral data.
 
 ## Architecture
 
@@ -147,14 +149,15 @@ curl -X POST http://localhost:8000/api/users \
 
 | Method | Path | Body / Query | Returns |
 | ------ | ---- | ------------ | ------- |
-| POST | `/api/checkups` | `{"user_id", "use_device_reading"}` | `CheckupCreated` (201) |
+| POST | `/api/checkups` | `{"user_id"}` | `CheckupCreated` (201) |
 | GET | `/api/checkups/{id}` | `?user_id=` | `CheckupResponse` (decrypted) |
 | DELETE | `/api/checkups/{id}` | `{"user_id"}` body or query | `{"detail": ...}` |
 | POST | `/api/checkups/{id}/share` | `{"user_id"}` | `ShareResponse` |
 
-`POST /api/checkups` with `use_device_reading: true` returns **409** when
-no device reading exists yet. Sharing awards `TOKEN_REWARD` (default 5)
-tokens once per checkup; a second share returns **409**.
+`POST /api/checkups` derives the report from the user's latest device
+reading and returns **409** when no reading exists yet. Sharing awards
+`TOKEN_REWARD` (default 5) tokens once per checkup; a second share
+returns **409**.
 
 ### Devices
 
@@ -198,7 +201,7 @@ Reports are encrypted with Fernet (`encrypted_data`) before storage; the
 
 - **No passwords.** Identity is a server-generated UUID kept in the
   browser; a device is identified by `device_id`. For production,
-  replace the simulated device identity with a real API key — the
+  replace the demo device identity with a real API key — the
   `verify_device_api_key` dependency in `app/core/security.py` is the
   pluggable seam (it can be promoted to global middleware).
 - **Fernet key.** `FERNET_KEY` (derived via SHA-256) encrypts reports at

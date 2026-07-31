@@ -67,7 +67,6 @@ export interface Checkup extends CheckupSummary {
 /** Backend: app/schemas/checkup.py -> CheckupCreate */
 export interface CheckupCreate {
   user_id: string;
-  use_device_reading: boolean;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupCreateResponse */

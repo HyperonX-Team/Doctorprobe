@@ -15,12 +15,11 @@ BiomarkerState = Literal["low", "normal", "high"]
 class CheckupCreate(BaseModel):
     """Payload for POST /api/checkups.
 
-    ``use_device_reading`` selects between the pure simulator path and the
-    path that consumes the latest physical sensor snapshot.
+    A checkup is always derived from the user's latest physical device
+    reading; the endpoint returns 409 when no reading exists yet.
     """
 
     user_id: uuid.UUID
-    use_device_reading: bool = False
 
 
 class Biomarker(BaseModel):

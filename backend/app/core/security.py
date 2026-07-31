@@ -19,7 +19,7 @@ async def verify_device_api_key(x_api_key: str | None = Header(default=None)) ->
     """Require a valid `X-API-Key` header when `DEVICE_API_KEY` is configured.
 
     When ``DEVICE_API_KEY`` is unset (local development) the check is
-    skipped so the ESP32 simulator can post readings without secrets.
+    skipped so the ESP32 device can post readings without secrets.
     Comparison is constant-time to avoid timing attacks.
     """
     settings = get_settings()

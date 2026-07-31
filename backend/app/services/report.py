@@ -1,4 +1,8 @@
-"""Report orchestration: builds, encrypts, and stores a checkup."""
+"""Report orchestration: builds, encrypts, and stores a checkup.
+
+A checkup is always derived from a physical device reading. When no
+reading exists for the user's device, creation fails with HTTP 409.
+"""
 
 from __future__ import annotations
 
@@ -12,14 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.checkup import Checkup
 from app.models.device_reading import DeviceReading
 from app.models.user import User
-from app.services import simulator
+from app.services import analyzer
 from app.utils import crypto
 
 logger = logging.getLogger(__name__)
 
 
 class ReportService:
-    """Creates checkups from simulated biomarker reports."""
+    """Creates checkups from real device readings."""
 
     @staticmethod
     async def _latest_reading(
@@ -36,7 +40,7 @@ class ReportService:
 
     @staticmethod
     def _profile_from_user(user: User) -> dict[str, Any]:
-        """Build the simulator profile dict from a user row."""
+        """Build the analysis profile dict from a user row."""
         return {
             "age": user.age,
             "sex": user.sex,
@@ -46,46 +50,41 @@ class ReportService:
         }
 
     @staticmethod
-    async def create_checkup(
-        db: AsyncSession,
-        user: User,
-        use_device_reading: bool,
-    ) -> Checkup:
-        """Run the simulation and persist an encrypted checkup.
+    async def create_checkup(db: AsyncSession, user: User) -> Checkup:
+        """Analyse the user's latest device reading and persist a checkup.
 
         Args:
             db: Async database session.
             user: The owning user (must be loaded in ``db``).
-            use_device_reading: When True, require and consume the latest
-                physical device reading; raise 409 when none exists.
 
         Returns:
             The persisted (unflushed) ``Checkup``.
-        """
-        sensor_reading: dict[str, Any] | None = None
-        if use_device_reading:
-            reading = await ReportService._latest_reading(db, user.device_id)
-            if reading is None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "No device reading available. "
-                        "Take a reading with your Doctordrobe device first."
-                    ),
-                )
-            sensor_reading = {
-                "rgb_r": reading.rgb_r,
-                "rgb_g": reading.rgb_g,
-                "rgb_b": reading.rgb_b,
-                "temperature_c": reading.temperature_c,
-                "humidity_pct": reading.humidity_pct,
-            }
-            logger.info("using device reading %s", reading.id)
 
-        report = simulator.generate_report(
+        Raises:
+            HTTPException 409: when no device reading exists yet.
+        """
+        reading = await ReportService._latest_reading(db, user.device_id)
+        if reading is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "No device reading available. "
+                    "Take a reading with your Doctordrobe device first."
+                ),
+            )
+
+        sensor_reading = {
+            "rgb_r": reading.rgb_r,
+            "rgb_g": reading.rgb_g,
+            "rgb_b": reading.rgb_b,
+            "temperature_c": reading.temperature_c,
+            "humidity_pct": reading.humidity_pct,
+        }
+        logger.info("using device reading %s", reading.id)
+
+        report = analyzer.generate_report(
             profile=ReportService._profile_from_user(user),
             sensor_reading=sensor_reading,
-            user_key=str(user.id),
         )
 
         checkup = Checkup(
