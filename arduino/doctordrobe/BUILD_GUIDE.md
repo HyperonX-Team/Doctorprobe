@@ -188,7 +188,7 @@ board "ESP32 Dev Module" + port, click Upload.)
 | Wi-Fi never connects | Wrong SSID/pass in `config.h`; 2.4 GHz only — ESP32 does not see 5 GHz networks |
 | LED stays on 5 s after press | Backend unreachable; check host IP/port, firewall, `DEVICE_API_KEY` mismatch |
 | Button does nothing | Button legs swapped or not to GND; check GPIO0 with multimeter |
-| Reading looks identical every time | Normal — the demo mapping is deterministic per day; check the serial log to confirm fresh sensor values |
+| Reading looks identical every time | Normal — the Beer-Lambert model is deterministic per reading; check the serial log to confirm fresh sensor values |
 | DHT read fails (`isnan`) | Check DATA pin + pull-up; DHT22 needs ≥2 s between reads (firmware handles it) |
 
 ---

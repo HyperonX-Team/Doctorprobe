@@ -2,11 +2,11 @@
 
 A home-health analyzer: an ESP32 sensor device, a FastAPI backend, and a
 React SPA. Saliva strips are read by an RGB spectrometer; the backend
-transforms the physical sensor reading and the user profile into a
-biomarker panel via a deterministic calibration mapping (architecturally
-ready for a trained ML model), encrypts the report at rest with Fernet,
-and presents it in a chat-style UI. Every checkup is derived from a real
-device reading — there is no simulated mode.
+models the strip's chromogen colour with Beer–Lambert reflectance
+chemistry into a panel of saliva-valid analytes (glucose, CRP, cortisol,
+pH, secretory IgA), adjusts for the user profile, encrypts the report at
+rest with Fernet, and presents it in a chat-style UI. Every checkup is
+derived from a real device reading — there is no simulated mode.
 
 > **Not a medical device.** The sensor-to-biomarker mapping is a
 > calibration placeholder awaiting a trained model on real spectral data.
@@ -176,19 +176,31 @@ curl -X POST http://localhost:8000/api/devices/reading \
 
 ### Report format
 
+Reports are derived from a physical device reading via a Beer-Lambert
+reflectance model (see `backend/app/services/analyzer.py`). The panel
+uses saliva-valid analytes with literature-plausible ranges:
+
+| Analyte | Signal | Unit | Reference range |
+| ------- | ------ | ---- | --------------- |
+| Salivary Glucose | red pad | mg/dL | 0.5 – 7.0 |
+| Salivary CRP | blue pad | ng/mL | 0.02 – 1.5 |
+| Salivary Cortisol | green pad | µg/dL | 0.1 – 0.6 (morning) |
+| Salivary pH | blue/green ratio | pH | 6.5 – 7.4 |
+| Secretory IgA | total intensity (turbidimetric) | mg/dL | 5.0 – 25.0 |
+
 ```json
 {
   "overall_risk": "low",
-  "text_summary": "Analysis complete for July 31, 2026. …",
+  "text_summary": "Analysis based on your latest Doctordrobe device reading. …",
   "biomarkers": [
     {
-      "name": "Iron (Ferritin)",
-      "value": 144.8,
-      "unit": "ng/mL",
-      "ref_low": 20,
-      "ref_high": 300,
+      "name": "Salivary Glucose",
+      "value": 4.2,
+      "unit": "mg/dL",
+      "ref_low": 0.5,
+      "ref_high": 7.0,
       "state": "normal",
-      "message": "Iron (Ferritin) is within the reference range. Keep it up!"
+      "message": "Salivary Glucose is within the reference range. Keep it up!"
     }
   ]
 }

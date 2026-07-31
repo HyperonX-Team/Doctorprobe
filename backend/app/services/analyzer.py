@@ -1,46 +1,138 @@
 """Biomarker analysis pipeline.
 
-Transforms a real device reading (RGB colour channels, temperature,
-humidity) plus the user profile into a biomarker report.
+Transforms a real device reading (normalized RGB colour channels,
+temperature, humidity) plus the user profile into a biomarker report.
 
 Fully deterministic: the same sensor snapshot and profile always produce
 the same report. There is no random sampling and no simulated data — a
 checkup can only be created from a physical device reading.
 
-The sensor-to-biomarker mapping below is a linear calibration
-placeholder; it is meant to be replaced by a trained ML model once real
-spectral calibration data is available.
+Biology model
+-------------
+Saliva test strips carry reagent pads. Each pad reacts with one analyte
+and develops a coloured chromogen whose intensity follows the
+Beer–Lambert law: A = -log10(R / R0), where R is the pad reflectance and
+R0 the blank (unstained) reflectance. Concentration is proportional to
+absorbance within the linear region of the calibration curve:
+
+    concentration = A * slope
+
+The firmware normalises every raw channel against the sensor's clear
+channel, so the values in the API payload are lighting-independent
+reflectance proxies in 0..255. A darker pad means a stronger reaction
+(colour development absorbs light), hence a higher concentration.
+
+All five analytes below are measurable in saliva with colorimetric
+strips (ranges are literature-plausible):
+
+    analyte              signal            unit     ref range
+    Salivary Glucose     red pad           mg/dL    0.5 - 7.0   (glucose-oxidase)
+    Salivary CRP         blue pad          ng/mL    0.02 - 1.5  (immunochromogenic)
+    Salivary Cortisol    green pad         µg/dL    0.1 - 0.6   (ELISA-type, morning)
+    Salivary pH          blue/green ratio  pH       6.5 - 7.4   (mixed indicator)
+    Secretory IgA        total intensity   mg/dL    5.0 - 25.0  (turbidimetric)
+
+Temperature and humidity corrections follow enzyme-kinetics principles:
+reaction rate rises with temperature, and high ambient humidity hydrates
+the strip, diluting soluble markers.
+
+The calibration slopes below are placeholder constants. Replace them
+with regression coefficients fitted on real strip calibration data —
+the pipeline structure (reflectance -> absorbance -> concentration)
+stays identical.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Any
-
-from app.utils.map_range import map_range
 
 # Reference ranges for each biomarker (name, unit, low, high).
 _REFERENCE_RANGES: dict[str, tuple[str, float, float]] = {
-    "iron": ("ng/mL", 20, 300),
-    "vitamin_d": ("ng/mL", 20, 80),
-    "crp": ("mg/L", 0.1, 3.0),
-    "glucose": ("mg/dL", 70, 140),
-    "hdl": ("mg/dL", 40, 90),
+    "glucose": ("mg/dL", 0.5, 7.0),
+    "crp": ("ng/mL", 0.02, 1.5),
+    "cortisol": ("µg/dL", 0.1, 0.6),
+    "ph": ("pH", 6.5, 7.4),
+    "siga": ("mg/dL", 5.0, 25.0),
 }
 
 _RISK_WEIGHTS = {
-    "iron": 0.25,
-    "vitamin_d": 0.20,
+    "glucose": 0.25,
     "crp": 0.30,
-    "glucose": 0.15,
-    "hdl": 0.10,
+    "cortisol": 0.20,
+    "ph": 0.15,
+    "siga": 0.10,
+}
+
+# Beer-Lambert calibration: concentration per unit absorbance.
+_SLOPES: dict[str, float] = {
+    "glucose": 15.0,
+    "crp": 2.0,
+    "cortisol": 1.2,
+    "siga": 60.0,
+}
+
+# Blank (unstained) pad reflectance: R0 = 0.92.
+_BLANK_REFLECTANCE = 0.92
+
+# Linear temperature coefficients (fractional change per °C vs 25 °C).
+_TEMP_COEFFS: dict[str, float] = {
+    "glucose": 0.010,
+    "crp": 0.008,
+    "cortisol": 0.006,
+    "siga": 0.0,
+}
+
+_FRIENDLY_NAMES = {
+    "glucose": "Salivary Glucose",
+    "crp": "Salivary CRP",
+    "cortisol": "Salivary Cortisol",
+    "ph": "Salivary pH",
+    "siga": "Secretory IgA",
 }
 
 
-def _sensor_to_bases(sensor_reading: dict[str, Any]) -> dict[str, float]:
-    """Map raw sensor values onto biomarker base values.
+def _reflectance(channel: float) -> float:
+    """Reflectance proxy from a 0..255 normalized channel (0 = black,
+    255 = white). Clamped to keep the logarithm well-defined."""
+    value = channel / 255.0
+    return min(max(value, 1e-4), 0.999)
 
-    This mapping is a linear calibration placeholder. Replace with a
-    trained ML model once real spectral calibration data is available.
+
+def _absorbance(reflectance: float) -> float:
+    """Beer-Lambert absorbance: A = -log10(R / R0). Zero for blank pads."""
+    return max(0.0, -math.log10(reflectance / _BLANK_REFLECTANCE))
+
+
+def _beer_lambert_value(
+    channel: float, slope: float, temperature_c: float, temp_coeff: float
+) -> float:
+    """Concentration from a Beer-Lambert fit with a linear temperature
+    (enzyme-kinetics) correction."""
+    value = _absorbance(_reflectance(channel)) * slope
+    return value * (1.0 + temp_coeff * (temperature_c - 25.0))
+
+
+def _ph_from_ratio(blue: float, green: float) -> float:
+    """Salivary pH from the mixed-indicator blue/green reflectance ratio.
+
+    pH = pKa + log10([In-] / [HIn]), and the indicator colour ratio is
+    proportional to the deprotonated/protonated form ratio. pKa 7.0
+    centred, 1.2 pH units per decade of colour ratio, clamped to the
+    physiological range.
+    """
+    rb, rg = _reflectance(blue), _reflectance(green)
+    if rb <= 1e-4 or rg <= 1e-4:
+        return 7.0  # both channels dark: ratio undefined, assume neutral
+    ratio = rb / rg
+    return min(max(7.0 + 1.2 * math.log10(ratio), 5.0), 8.5)
+
+
+def _sensor_to_bases(sensor_reading: dict[str, Any]) -> dict[str, float]:
+    """Map raw sensor values onto biomarker base values via Beer-Lambert.
+
+    Calibration slopes are placeholders; replace with regression
+    coefficients fitted on real strip data.
     """
     r, g, b = (
         int(sensor_reading.get("rgb_r", 128)),
@@ -51,27 +143,35 @@ def _sensor_to_bases(sensor_reading: dict[str, Any]) -> dict[str, float]:
     humidity = float(sensor_reading.get("humidity_pct", 50.0))
 
     bases: dict[str, float] = {
-        # Red channel drives iron (deep colour = higher ferritin).
-        "iron": map_range(r, 0, 255, 20, 300),
-        # Green channel drives vitamin D (brightness correlates with assay).
-        "vitamin_d": map_range(g, 0, 255, 10, 80),
-        # Blue channel drives inflammation (CRP).
-        "crp": map_range(b, 0, 255, 0.1, 10.0),
-        # Temperature offsets glucose.
-        "glucose": map_range(temperature, 15, 40, 70, 180),
-        # Humidity affects HDL.
-        "hdl": map_range(humidity, 20, 90, 30, 90),
+        "glucose": _beer_lambert_value(
+            r, _SLOPES["glucose"], temperature, _TEMP_COEFFS["glucose"]
+        ),
+        "crp": _beer_lambert_value(
+            b, _SLOPES["crp"], temperature, _TEMP_COEFFS["crp"]
+        ),
+        "cortisol": _beer_lambert_value(
+            g, _SLOPES["cortisol"], temperature, _TEMP_COEFFS["cortisol"]
+        ),
+        "ph": _ph_from_ratio(b, g),
     }
+
+    # Secretory IgA by turbidimetry: total optical attenuation. High
+    # ambient humidity hydrates the pad and dilutes the soluble marker.
+    average_intensity = (r + g + b) / 3.0
+    bases["siga"] = _beer_lambert_value(
+        average_intensity, _SLOPES["siga"], temperature, _TEMP_COEFFS["siga"]
+    ) * (1.0 - 0.002 * (humidity - 50.0))
+
     return bases
 
 
 def _profile_adjustments(profile: dict[str, Any]) -> dict[str, float]:
     """Compute deterministic biomarker adjustments from the user profile.
 
-    - Older age shifts glucose/CRP slightly upward.
-    - Higher activity level raises HDL and lowers CRP.
-    - Higher BMI (derived from height/weight) raises glucose.
-    - Sex nudges iron and HDL (calibration placeholder).
+    - Older age and higher BMI raise salivary glucose and CRP (metabolic
+      physiology: insulin resistance drives both).
+    - Higher activity level raises secretory IgA (exercise bolsters
+      mucosal immunity; overtraining at athlete level blunts it).
     """
     deltas: dict[str, float] = {}
     age = int(profile.get("age", 35))
@@ -80,24 +180,17 @@ def _profile_adjustments(profile: dict[str, Any]) -> dict[str, float]:
     weight_kg = float(profile.get("weight_kg", 70))
     bmi = weight_kg / ((height_cm / 100) ** 2) if height_cm > 0 else 22.0
 
-    deltas["glucose"] = max(0, (age - 50)) * 0.3 + max(0, bmi - 25) * 1.2
-    deltas["crp"] = max(0, (age - 50)) * 0.02
+    deltas["glucose"] = max(0, (age - 50)) * 0.006 + max(0, bmi - 25) * 0.02
+    deltas["crp"] = max(0, (age - 50)) * 0.005
 
-    activity_deltas = {
-        "sedentary": {"hdl": -6, "crp": +0.6},
-        "light": {"hdl": -2, "crp": +0.2},
-        "moderate": {"hdl": +0, "crp": +0.0},
-        "active": {"hdl": +4, "crp": -0.3},
-        "athlete": {"hdl": +8, "crp": -0.5},
+    siga_deltas = {
+        "sedentary": -2.0,
+        "light": 1.0,
+        "moderate": 2.0,
+        "active": 3.0,
+        "athlete": 1.0,  # overtraining dip
     }
-    for key, value in activity_deltas.get(activity, {}).items():
-        deltas[key] = deltas.get(key, 0.0) + value
-
-    if profile.get("sex") == "male":
-        deltas["iron"] = deltas.get("iron", 0.0) + 15
-        deltas["hdl"] = deltas.get("hdl", 0.0) + 3
-    elif profile.get("sex") == "female":
-        deltas["iron"] = deltas.get("iron", 0.0) - 10
+    deltas["siga"] = siga_deltas.get(activity, 0.0)
 
     return deltas
 
@@ -115,24 +208,18 @@ def _build_biomarker(key: str, value: float) -> dict[str, Any]:
     """Build the public biomarker record with a human-friendly message."""
     unit, ref_low, ref_high = _REFERENCE_RANGES[key]
     state = _state_for(value, ref_low, ref_high)
+    name = _FRIENDLY_NAMES[key]
 
-    friendly_names = {
-        "iron": "Iron (Ferritin)",
-        "vitamin_d": "Vitamin D (25-OH)",
-        "crp": "C-Reactive Protein",
-        "glucose": "Fasting Glucose",
-        "hdl": "HDL Cholesterol",
-    }
     state_messages = {
-        "low": f"{friendly_names[key]} is below the reference range. "
+        "low": f"{name} is below the reference range. "
         f"Consider reviewing your diet or speaking with a clinician.",
-        "normal": f"{friendly_names[key]} is within the reference range. Keep it up!",
-        "high": f"{friendly_names[key]} is above the reference range. "
+        "normal": f"{name} is within the reference range. Keep it up!",
+        "high": f"{name} is above the reference range. "
         f"Consider a follow-up conversation with a clinician.",
     }
 
     return {
-        "name": friendly_names[key],
+        "name": name,
         "value": round(value, 2),
         "unit": unit,
         "ref_low": ref_low,
@@ -167,14 +254,17 @@ def generate_report(
     biomarkers = []
     for key, (unit, ref_low, ref_high) in _REFERENCE_RANGES.items():
         value = bases[key] + deltas.get(key, 0.0)
-        value = max(ref_low * 0.4, min(ref_high * 1.6, value))
+        if key == "ph":
+            value = min(max(value, 5.0), 8.5)
+        else:
+            value = max(ref_low * 0.4, min(ref_high * 1.6, value))
         biomarkers.append(_build_biomarker(key, value))
 
     # Weighted risk score: each out-of-range marker contributes its weight.
     score = 0.0
-    for marker in biomarkers:
+    for key, marker in zip(_REFERENCE_RANGES, biomarkers):
         if marker["state"] != "normal":
-            score += _RISK_WEIGHTS.get(marker["name"], 0.1)
+            score += _RISK_WEIGHTS[key]
 
     if score >= 0.45:
         overall_risk = "high"

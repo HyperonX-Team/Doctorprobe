@@ -1,4 +1,6 @@
-"""Analyzer unit tests: deterministic sensor-to-report mapping."""
+"""Analyzer unit tests: deterministic Beer-Lambert sensor-to-report mapping."""
+
+import pytest
 
 from app.services import analyzer
 from app.utils.map_range import map_range
@@ -32,11 +34,8 @@ def test_map_range_basic_and_clamped():
 
 def test_generate_report_requires_reading():
     """A report cannot be generated without a device reading."""
-    try:
+    with pytest.raises(ValueError):
         analyzer.generate_report(PROFILE, {})
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for empty sensor_reading")
 
 
 def test_report_is_deterministic_for_same_reading():
@@ -48,77 +47,118 @@ def test_report_is_deterministic_for_same_reading():
     assert report_a["overall_risk"] in {"low", "medium", "high"}
     assert report_a["summary"]
     assert report_a["text_summary"]
-    assert len(report_a["biomarkers"]) >= 3
+    assert len(report_a["biomarkers"]) >= 4
 
 
-def test_sensor_reading_changes_base_values():
-    """Extreme sensor inputs push biomarker values apart (no randomness)."""
-    dark = {
-        "rgb_r": 0,
-        "rgb_g": 0,
-        "rgb_b": 0,
-        "temperature_c": 15.0,
-        "humidity_pct": 20.0,
-    }
-    bright = {
+def test_panel_is_saliva_plausible():
+    """The panel contains saliva-valid analytes with sane units."""
+    report = analyzer.generate_report(PROFILE, SENSOR)
+    names = {m["name"] for m in report["biomarkers"]}
+
+    assert "Salivary Glucose" in names
+    assert "Salivary CRP" in names
+    assert "Salivary Cortisol" in names
+    assert "Salivary pH" in names
+    assert "Secretory IgA" in names
+
+    glucose = next(m for m in report["biomarkers"] if m["name"] == "Salivary Glucose")
+    assert glucose["unit"] == "mg/dL"
+    assert glucose["ref_high"] <= 7.0  # saliva scale, not serum
+
+
+def test_darker_pad_means_higher_concentration():
+    """Beer-Lambert: chromogen development darkens the pad, raising the
+    measured concentration (blank pad -> near-zero concentration)."""
+    blank = {
         "rgb_r": 255,
         "rgb_g": 255,
         "rgb_b": 255,
-        "temperature_c": 40.0,
-        "humidity_pct": 90.0,
+        "temperature_c": 25.0,
+        "humidity_pct": 50.0,
+    }
+    developed = {
+        "rgb_r": 30,
+        "rgb_g": 30,
+        "rgb_b": 30,
+        "temperature_c": 25.0,
+        "humidity_pct": 50.0,
     }
 
-    dark_report = analyzer.generate_report(PROFILE, dark)
-    bright_report = analyzer.generate_report(PROFILE, bright)
+    blank_report = analyzer.generate_report(PROFILE, blank)
+    developed_report = analyzer.generate_report(PROFILE, developed)
 
-    values_dark = {m["name"]: m["value"] for m in dark_report["biomarkers"]}
-    values_bright = {m["name"]: m["value"] for m in bright_report["biomarkers"]}
+    values_blank = {m["name"]: m["value"] for m in blank_report["biomarkers"]}
+    values_dev = {m["name"]: m["value"] for m in developed_report["biomarkers"]}
 
-    # Iron rises with red channel; glucose rises with temperature.
-    assert values_bright["Iron (Ferritin)"] > values_dark["Iron (Ferritin)"]
-    assert values_bright["Fasting Glucose"] > values_dark["Fasting Glucose"]
-    # CRP rises with blue channel.
-    assert values_bright["C-Reactive Protein"] > values_dark["C-Reactive Protein"]
+    assert values_dev["Salivary Glucose"] > values_blank["Salivary Glucose"]
+    assert values_dev["Salivary CRP"] > values_blank["Salivary CRP"]
+    assert values_dev["Salivary Cortisol"] > values_blank["Salivary Cortisol"]
+    assert values_dev["Secretory IgA"] > values_blank["Secretory IgA"]
+
+
+def test_ph_tracks_indicator_ratio():
+    """Blue-dominant colouring reads alkaline, green-dominant acidic."""
+    blue_dominant = {
+        "rgb_r": 128,
+        "rgb_g": 60,
+        "rgb_b": 220,
+        "temperature_c": 25.0,
+        "humidity_pct": 50.0,
+    }
+    green_dominant = {
+        "rgb_r": 128,
+        "rgb_g": 220,
+        "rgb_b": 60,
+        "temperature_c": 25.0,
+        "humidity_pct": 50.0,
+    }
+
+    alkaline = analyzer.generate_report(PROFILE, blue_dominant)
+    acidic = analyzer.generate_report(PROFILE, green_dominant)
+
+    ph_alkaline = next(
+        m["value"] for m in alkaline["biomarkers"] if m["name"] == "Salivary pH"
+    )
+    ph_acidic = next(
+        m["value"] for m in acidic["biomarkers"] if m["name"] == "Salivary pH"
+    )
+    assert ph_alkaline > 7.4  # high / alkaline
+    assert ph_acidic < 6.5  # low / acidic
 
 
 def test_profile_adjustments_apply():
-    """Different profiles shift the same reading deterministically."""
+    """Profile physiology shifts the same reading deterministically."""
     athlete = {**PROFILE, "activity_level": "athlete"}
     sedentary = {**PROFILE, "activity_level": "sedentary"}
 
     athlete_report = analyzer.generate_report(athlete, SENSOR)
     sedentary_report = analyzer.generate_report(sedentary, SENSOR)
 
-    values_athlete = {m["name"]: m["value"] for m in athlete_report["biomarkers"]}
-    values_sedentary = {
-        m["name"]: m["value"] for m in sedentary_report["biomarkers"]
-    }
-
-    # Higher activity raises HDL and lowers CRP.
-    assert values_athlete["HDL Cholesterol"] > values_sedentary["HDL Cholesterol"]
-    assert (
-        values_athlete["C-Reactive Protein"]
-        < values_sedentary["C-Reactive Protein"]
+    siga_athlete = next(
+        m["value"] for m in athlete_report["biomarkers"] if m["name"] == "Secretory IgA"
     )
-
-
-def test_sex_adjustment_on_iron():
-    """Male/female profiles nudge iron deterministically."""
-    male = {**PROFILE, "sex": "male"}
-    female = {**PROFILE, "sex": "female"}
-
-    male_report = analyzer.generate_report(male, SENSOR)
-    female_report = analyzer.generate_report(female, SENSOR)
-
-    male_iron = next(
-        m["value"] for m in male_report["biomarkers"] if m["name"] == "Iron (Ferritin)"
-    )
-    female_iron = next(
+    siga_sedentary = next(
         m["value"]
-        for m in female_report["biomarkers"]
-        if m["name"] == "Iron (Ferritin)"
+        for m in sedentary_report["biomarkers"]
+        if m["name"] == "Secretory IgA"
     )
-    assert male_iron > female_iron
+    assert siga_athlete > siga_sedentary
+
+    # Higher BMI raises salivary glucose.
+    high_bmi = {**PROFILE, "weight_kg": 95.0}  # BMI ~34.9 vs ~22.8
+    low_bmi = {**PROFILE, "weight_kg": 62.0}
+
+    glucose_high_bmi = next(
+        m["value"]
+        for m in analyzer.generate_report(high_bmi, SENSOR)["biomarkers"]
+        if m["name"] == "Salivary Glucose"
+    )
+    glucose_low_bmi = next(
+        m["value"]
+        for m in analyzer.generate_report(low_bmi, SENSOR)["biomarkers"]
+        if m["name"] == "Salivary Glucose"
+    )
+    assert glucose_high_bmi > glucose_low_bmi
 
 
 def test_biomarkers_have_valid_states_and_ranges():
