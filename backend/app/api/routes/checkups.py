@@ -7,6 +7,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -175,6 +176,14 @@ async def share_checkup(
         )
         await db.commit()
         await db.refresh(user)
+    except IntegrityError:
+        # Concurrent share lost the race: the unique constraint on
+        # share_events.checkup_id is the source of truth.
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This checkup has already been shared",
+        )
     except Exception:
         await db.rollback()
         raise HTTPException(

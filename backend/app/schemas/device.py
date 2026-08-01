@@ -39,3 +39,26 @@ class DeviceStatus(BaseModel):
 
     connected: bool
     last_seen: datetime | None = None
+
+
+class DeviceBaselineCreate(BaseModel):
+    """Blank-pad calibration capture posted by the firmware (CAL BLANK)."""
+
+    device_id: str = Field(min_length=1, max_length=64)
+    rgb_r: int = Field(ge=0, le=255)
+    rgb_g: int = Field(ge=0, le=255)
+    rgb_b: int = Field(ge=0, le=255)
+
+
+class DeviceBaselineResponse(BaseModel):
+    """Stored per-device blank baseline."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    device_id: str
+    rgb_r: int
+    rgb_g: int
+    rgb_b: int
+    created_at: datetime
+    updated_at: datetime

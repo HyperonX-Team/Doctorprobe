@@ -45,5 +45,6 @@ const char* DEVICE_ID = "doctordrobe_demo_001";
 // API endpoints (relative to the backend root).
 #define API_PATH "/api/devices/reading"
 #define CALIBRATION_PATH "/api/calibration/samples"
+#define BASELINE_PATH "/api/devices/baseline"
 
 #endif // CONFIG_H

@@ -151,8 +151,8 @@ export default function Settings() {
               Share checkup data with the community
             </span>
             <span className="block text-xs text-slate-400">
-              Earn {5} tokens per shared checkup. Sharing is always opt-in per checkup
-              on the report page.
+              Earn 5 tokens per shared checkup. Sharing is always opt-in per checkup on
+              the report page.
             </span>
           </span>
         </label>
