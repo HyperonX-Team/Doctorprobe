@@ -41,13 +41,16 @@ export default function Report() {
   };
 
   const handleSaveToVault = () => {
+    if (!checkupId) {
+      return;
+    }
     setSaving(true);
     // Demo: the vault is the browser — persist a pointer and confirm.
     const saved = JSON.parse(
       localStorage.getItem('doctordrobe_vault') ?? '[]',
     ) as string[];
-    if (!saved.includes(checkupId!)) {
-      saved.unshift(checkupId!);
+    if (!saved.includes(checkupId)) {
+      saved.unshift(checkupId);
       localStorage.setItem('doctordrobe_vault', JSON.stringify(saved));
     }
     window.setTimeout(() => setSaving(false), 400);

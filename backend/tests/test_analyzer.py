@@ -219,3 +219,43 @@ def test_beer_lambert_fallback_without_model(monkeypatch):
         m for m in report["biomarkers"] if m["name"] == "Salivary Glucose"
     )
     assert 0.0 < glucose["value"]
+
+
+def test_correct_reading_applies_blank_gain():
+    """Gain correction scales channels up toward the unit's 'white'."""
+    reading = {
+        "rgb_r": 180,
+        "rgb_g": 200,
+        "rgb_b": 220,
+        "temperature_c": 25.0,
+        "humidity_pct": 50.0,
+    }
+    baseline = {"rgb_r": 240, "rgb_g": 250, "rgb_b": 230}
+
+    corrected = analyzer.correct_reading(reading, baseline)
+
+    assert corrected["rgb_r"] == round(180 * 255 / 240)  # 191
+    assert corrected["rgb_g"] == round(200 * 255 / 250)  # 204
+    assert corrected["rgb_b"] == round(220 * 255 / 230)  # 244
+    # Non-colour fields pass through untouched.
+    assert corrected["temperature_c"] == 25.0
+    assert corrected["humidity_pct"] == 50.0
+
+
+def test_correct_reading_is_noop_without_baseline():
+    """No baseline -> reading is returned unchanged."""
+    reading = {"rgb_r": 120, "rgb_g": 200, "rgb_b": 60, "temperature_c": 25.0, "humidity_pct": 50.0}
+    assert analyzer.correct_reading(reading, None) == reading
+    assert analyzer.correct_reading(reading, {}) == reading
+
+
+def test_correct_reading_clamps_and_quantises():
+    """Correction never leaves the 0..255 ADC range."""
+    reading = {"rgb_r": 250, "rgb_g": 10, "rgb_b": 128, "temperature_c": 25.0, "humidity_pct": 50.0}
+    baseline = {"rgb_r": 100, "rgb_g": 200, "rgb_b": 255}
+
+    corrected = analyzer.correct_reading(reading, baseline)
+
+    assert corrected["rgb_r"] == 255  # 250 * 2.55 clamps
+    assert corrected["rgb_g"] == 13  # 10 * 1.275 rounds to 13
+    assert corrected["rgb_b"] == 128  # no gain (blank == 255)

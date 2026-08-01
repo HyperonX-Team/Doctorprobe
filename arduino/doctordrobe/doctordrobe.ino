@@ -211,22 +211,30 @@ static int postToBackend(JsonDocument& doc, const char* path) {
 // ------------------------------------------------------------------
 // Calibration mode
 //
-// Serial command:  CAL <analyte> <concentration>
-//                  e.g. CAL glucose 3.5   (units per backend schema)
-//                  CALCLEAR  clears the armed calibration
+// Serial commands:
+//   CAL <analyte> <concentration>   e.g. CAL glucose 3.5
+//   CAL BLANK                       capture an unstained strip (white
+//                                   balance for this unit)
+//   CALCLEAR                        clears the armed calibration
 // When armed, the next button press captures CAL_CAPTURES averaged
 // sensor readings and posts one labeled sample to /api/calibration/
-// samples. See the calibration protocol in the project README.
+// samples (or the blank baseline to /api/devices/baseline).
 // ------------------------------------------------------------------
 
 static char calAnalyte[CAL_ANALYTE_MAX_LEN] = {0};
 static float calConcentration = -1.0f;
+static bool calBlankArmed = false;
 
 static void handleSerialCommands() {
   while (Serial.available()) {
     String line = Serial.readStringUntil('\n');
     line.trim();
-    if (line.startsWith("CAL ")) {
+    if (line == "CAL BLANK") {
+      calBlankArmed = true;
+      calAnalyte[0] = '\0';
+      calConcentration = -1.0f;
+      Serial.println("[cal] blank armed — place an UNSTAINED strip and press the button");
+    } else if (line.startsWith("CAL ")) {
       int space = line.indexOf(' ', 4);
       if (space > 4) {
         String analyte = line.substring(4, space);
@@ -234,18 +242,60 @@ static void handleSerialCommands() {
         if (value > 0.0f && analyte.length() < CAL_ANALYTE_MAX_LEN) {
           analyte.toCharArray(calAnalyte, sizeof(calAnalyte));
           calConcentration = value;
+          calBlankArmed = false;
           Serial.printf("[cal] armed: %s = %.3f — press the button to capture\n",
                         calAnalyte, calConcentration);
           return;
         }
       }
-      Serial.println("[cal] usage: CAL <analyte> <concentration>");
+      Serial.println("[cal] usage: CAL <analyte> <concentration> | CAL BLANK");
     } else if (line == "CALCLEAR") {
       calAnalyte[0] = '\0';
       calConcentration = -1.0f;
+      calBlankArmed = false;
       Serial.println("[cal] cleared");
     }
   }
+}
+
+// Average CAL_CAPTURES readings and fill device_id + rgb channels
+// (normalized against the clear channel, same as readSensors).
+// Returns false on sensor failure.
+static bool captureAveragedRgb(JsonDocument& doc) {
+  long rSum = 0, gSum = 0, bSum = 0;
+  bool ok = true;
+
+  for (int i = 0; i < CAL_CAPTURES; i++) {
+    uint16_t r, g, b, c;
+    tcs.getRawData(&r, &g, &b, &c);
+    if (c == 0) {
+      ok = false;
+      break;
+    }
+    rSum += r;
+    gSum += g;
+    bSum += b;
+    if (i < CAL_CAPTURES - 1) {
+      delay(CAL_INTERVAL_MS);
+    }
+  }
+  if (!ok) {
+    return false;
+  }
+
+  float r = rSum / (float)CAL_CAPTURES;
+  float g = gSum / (float)CAL_CAPTURES;
+  float b = bSum / (float)CAL_CAPTURES;
+  float c = (r + g + b) / 3.0f;  // clear is not exposed; approximate
+  if (c < 1.0f) {
+    return false;
+  }
+
+  doc["device_id"] = DEVICE_ID;
+  doc["rgb_r"] = rgbToInt(r / c);
+  doc["rgb_g"] = rgbToInt(g / c);
+  doc["rgb_b"] = rgbToInt(b / c);
+  return true;
 }
 
 // Average CAL_CAPTURES readings of a control standard and serialise
@@ -370,7 +420,32 @@ void loop() {
     initialiseSensors();
   }
 
-  // Calibration capture takes priority over a normal reading.
+  // Calibration captures take priority over a normal reading.
+  if (calBlankArmed) {
+    Serial.println("[cal] capturing blank baseline...");
+    JsonDocument doc;
+    if (!captureAveragedRgb(doc)) {
+      Serial.println("[cal] sensor error during blank capture; LED on for 5s");
+      digitalWrite(PIN_LED, HIGH);
+      delay(5000);
+      digitalWrite(PIN_LED, LOW);
+      return;
+    }
+    int statusCode = postToBackend(doc, BASELINE_PATH);
+    if (statusCode == 200 || statusCode == 201) {
+      Serial.println("[cal] blank baseline accepted — blinking LED 3x");
+      blinkLed(3, 300);
+    } else {
+      Serial.printf("[cal] blank rejected (%d) — LED on for 5s\n", statusCode);
+      digitalWrite(PIN_LED, HIGH);
+      delay(5000);
+      digitalWrite(PIN_LED, LOW);
+    }
+    calBlankArmed = false;
+    Serial.println("[cal] blank disarmed");
+    return;
+  }
+
   if (calConcentration > 0.0f) {
     Serial.printf("[cal] capturing %d readings for %s = %.3f...\n",
                   CAL_CAPTURES, calAnalyte, calConcentration);

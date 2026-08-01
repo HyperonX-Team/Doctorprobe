@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.checkup import Checkup
+from app.models.device_baseline import DeviceBaseline
 from app.models.device_reading import DeviceReading
 from app.models.user import User
 from app.services import analyzer
@@ -35,6 +36,16 @@ class ReportService:
             .where(DeviceReading.device_id == device_id)
             .order_by(DeviceReading.created_at.desc())
             .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def _get_baseline(
+        db: AsyncSession, device_id: str
+    ) -> DeviceBaseline | None:
+        """Fetch the device's blank-pad baseline, if one exists."""
+        result = await db.execute(
+            select(DeviceBaseline).where(DeviceBaseline.device_id == device_id)
         )
         return result.scalar_one_or_none()
 
@@ -81,6 +92,20 @@ class ReportService:
             "humidity_pct": reading.humidity_pct,
         }
         logger.info("using device reading %s", reading.id)
+
+        # Per-device white balance: gain-correct against the blank-pad
+        # baseline so optics drift does not bias the analysis.
+        baseline = await ReportService._get_baseline(db, user.device_id)
+        if baseline is not None:
+            sensor_reading = analyzer.correct_reading(
+                sensor_reading,
+                {
+                    "rgb_r": baseline.rgb_r,
+                    "rgb_g": baseline.rgb_g,
+                    "rgb_b": baseline.rgb_b,
+                },
+            )
+            logger.info("applied blank-pad baseline for %s", user.device_id)
 
         report = analyzer.generate_report(
             profile=ReportService._profile_from_user(user),

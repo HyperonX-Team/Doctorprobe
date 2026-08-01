@@ -51,7 +51,7 @@ export default function Home() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Hello 👋</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Hello</h1>
         <p className="mt-1 text-sm text-slate-500">
           Ready for today's checkup? Your last analysis was{' '}
           {latest ? formatDate(latest.created_at) : 'never'}.

@@ -11,8 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.security import verify_device_api_key
 from app.db.session import get_db
+from app.models.device_baseline import DeviceBaseline
 from app.models.device_reading import DeviceReading
 from app.schemas.device import (
+    DeviceBaselineCreate,
+    DeviceBaselineResponse,
     DeviceReadingCreate,
     DeviceReadingResponse,
     DeviceStatus,
@@ -105,3 +108,58 @@ async def get_device_status(
         connected=_as_aware(reading.created_at) > stale_cutoff,
         last_seen=reading.created_at,
     )
+
+
+@router.post(
+    "/baseline",
+    response_model=DeviceBaselineResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(verify_device_api_key)],
+)
+async def upsert_device_baseline(
+    payload: DeviceBaselineCreate, db: AsyncSession = Depends(get_db)
+) -> DeviceBaseline:
+    """Store (or update) a device's blank-pad baseline (CAL BLANK).
+
+    The analyzer gain-corrects every reading against this baseline, so
+    optics/LED drift between units does not bias biomarker estimates.
+    """
+    result = await db.execute(
+        select(DeviceBaseline).where(DeviceBaseline.device_id == payload.device_id)
+    )
+    baseline = result.scalar_one_or_none()
+    try:
+        if baseline is None:
+            baseline = DeviceBaseline(**payload.model_dump())
+            db.add(baseline)
+        else:
+            baseline.rgb_r = payload.rgb_r
+            baseline.rgb_g = payload.rgb_g
+            baseline.rgb_b = payload.rgb_b
+        await db.commit()
+        await db.refresh(baseline)
+        return baseline
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not store device baseline",
+        )
+
+
+@router.get("/baseline", response_model=DeviceBaselineResponse)
+async def get_device_baseline(
+    device_id: str = Query(..., min_length=1, max_length=64),
+    db: AsyncSession = Depends(get_db),
+) -> DeviceBaseline:
+    """Return the stored blank baseline for a device."""
+    result = await db.execute(
+        select(DeviceBaseline).where(DeviceBaseline.device_id == device_id)
+    )
+    baseline = result.scalar_one_or_none()
+    if baseline is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No baseline recorded for this device — run CAL BLANK on the firmware",
+        )
+    return baseline

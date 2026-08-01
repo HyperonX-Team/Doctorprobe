@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import calibration, checkups, devices, shares, users
 from app.core.config import get_settings
-from app.core.logging import RequestContextMiddleware, setup_logging
+from app.core.logging import RequestContextMiddleware, get_request_id, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def create_app() -> FastAPI:
         logger.exception(
             "unhandled error",
             extra={
-                "request_id": request.headers.get("X-Request-ID"),
+                "request_id": get_request_id(),
                 "path": request.url.path,
                 "error": exc.__class__.__name__,
             },

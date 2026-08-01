@@ -146,6 +146,34 @@ def _ph_from_ratio(blue: float, green: float) -> float:
     return min(max(7.0 + 1.2 * math.log10(ratio), 5.0), 8.5)
 
 
+def correct_reading(
+    sensor_reading: dict[str, Any], baseline: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Per-device white-balance correction against a blank-pad baseline.
+
+    The firmware normalises every channel against the sensor's clear
+    channel, so a clean unstained strip should read ~255 on every
+    channel. Individual units drift (optics, LED ageing), so the
+    ``CAL BLANK`` capture defines that unit's "white". Gain correction:
+
+        corrected = channel * 255 / blank
+
+    Applied before any model inference or Beer-Lambert fallback; values
+    are clamped and quantised exactly like the ADC output.
+    """
+    if not baseline:
+        return sensor_reading
+
+    corrected = dict(sensor_reading)
+    for channel in ("rgb_r", "rgb_g", "rgb_b"):
+        blank = float(baseline.get(channel, 0.0))
+        value = float(sensor_reading.get(channel, 128))
+        if blank > 0:
+            value = value * (255.0 / blank)
+        corrected[channel] = int(min(max(round(value), 0), 255))
+    return corrected
+
+
 def _load_model() -> dict[str, Any] | None:
     """Load the SaliNet model and manifest, or None when unavailable."""
     if not _MODEL_PATH.exists() or not _MANIFEST_PATH.exists():

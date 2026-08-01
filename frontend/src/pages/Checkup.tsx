@@ -76,7 +76,7 @@ export default function Checkup() {
 
       {phase.kind === 'creating' && (
         <div className="flex justify-center rounded-xl border border-slate-200 bg-white p-8">
-          <CheckupProgress durationMs={4000} onComplete={() => undefined} />
+          <CheckupProgress durationMs={4000} />
         </div>
       )}
 

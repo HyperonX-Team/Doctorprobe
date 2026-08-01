@@ -161,6 +161,89 @@ async def test_delete_checkup(client, created_user):
 
 
 @pytest.mark.asyncio
+async def test_blank_baseline_upsert_and_get(client):
+    """CAL BLANK baseline is stored once and updated in place."""
+    payload = {
+        "device_id": "doctordrobe_demo_001",
+        "rgb_r": 240,
+        "rgb_g": 250,
+        "rgb_b": 230,
+    }
+
+    response = await client.post("/api/devices/baseline", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["rgb_r"] == 240
+    baseline_id = body["id"]
+
+    # Upsert updates the same row.
+    response = await client.post(
+        "/api/devices/baseline", json={**payload, "rgb_r": 245}
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == baseline_id
+    assert response.json()["rgb_r"] == 245
+
+    response = await client.get(
+        "/api/devices/baseline?device_id=doctordrobe_demo_001"
+    )
+    assert response.status_code == 200
+    assert response.json()["rgb_r"] == 245
+
+    response = await client.get("/api/devices/baseline?device_id=unknown_device")
+    assert response.status_code == 404
+    assert "CAL BLANK" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_blank_baseline_validation(client):
+    """Out-of-range channels are rejected."""
+    response = await client.post(
+        "/api/devices/baseline",
+        json={"device_id": "d1", "rgb_r": 300, "rgb_g": 128, "rgb_b": 128},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_checkup_applies_baseline_correction(client, created_user):
+    """A stored baseline gain-corrects the reading before analysis."""
+    await _post_reading(client)
+
+    first = await _create_checkup(client, created_user["id"])
+    assert first.status_code == 201, first.text
+
+    await client.post(
+        "/api/devices/baseline",
+        json={
+            "device_id": "doctordrobe_demo_001",
+            "rgb_r": 240,
+            "rgb_g": 250,
+            "rgb_b": 230,
+        },
+    )
+    second = await _create_checkup(client, created_user["id"])
+    assert second.status_code == 201, second.text
+
+    async def biomarker_values(checkup_id):
+        response = await client.get(
+            f"/api/checkups/{checkup_id}?user_id={created_user['id']}"
+        )
+        assert response.status_code == 200
+        return {
+            m["name"]: m["value"]
+            for m in response.json()["biomarkers"]
+            if m["name"] != "Salivary pH"
+        }
+
+    before = await biomarker_values(first.json()["id"])
+    after = await biomarker_values(second.json()["id"])
+
+    # Same physical reading, different baseline -> different analysis.
+    assert before != after
+
+
+@pytest.mark.asyncio
 async def test_share_checkup_awards_tokens_once(client, created_user):
     """Sharing awards tokens exactly once; re-sharing conflicts."""
     await _post_reading(client)
