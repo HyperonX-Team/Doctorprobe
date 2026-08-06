@@ -42,8 +42,17 @@ const char* DEVICE_ID = "doctordrobe_demo_001";
 #define CAL_INTERVAL_MS 500
 #define CAL_ANALYTE_MAX_LEN 16
 
+// Normal reading mode: a button press captures a BURST of snapshots of
+// the same strip. The backend deconvolves the whole burst together to
+// average out sensor noise and to quantify how confidently each analyte
+// can be resolved (see app/services/spectral.py). More snapshots -> a
+// more over-determined system -> tighter error bars.
+#define READING_CAPTURES 5
+#define READING_INTERVAL_MS 150
+
 // API endpoints (relative to the backend root).
 #define API_PATH "/api/devices/reading"
+#define BURST_PATH "/api/devices/readings"
 #define CALIBRATION_PATH "/api/calibration/samples"
 #define BASELINE_PATH "/api/devices/baseline"
 

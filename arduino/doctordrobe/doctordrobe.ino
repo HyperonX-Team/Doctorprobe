@@ -2,8 +2,9 @@
 // Doctordrobe — ESP32 health analyzer firmware.
 //
 // Reads the TCS34725 colour sensor (saliva strip colour), the DHT22
-// temperature/humidity sensor, and sends the snapshot to the
-// Doctordrobe backend over HTTP(S) when the button is pressed.
+// temperature/humidity sensor, and sends a BURST of snapshots of the
+// same strip to the Doctordrobe backend over HTTP(S) when the button
+// is pressed. The backend deconvolves the burst into a biomarker panel.
 //
 // Board: ESP32 DevKit (default), Arduino framework, ESP32 core 2.0.14.
 // Libraries: Adafruit TCS34725, DHT sensor library, ArduinoJson.
@@ -117,16 +118,12 @@ static int rgbToInt(float channel) {
   return constrain(value, 0, 255);
 }
 
-// Read all sensors and serialise into a JSON document.
-// Returns false when a sensor read fails.
-static bool readSensors(JsonDocument& doc) {
-  uint16_t r, g, b, c;
-  tcs.getRawData(&r, &g, &b, &c);
-  if (c == 0) {
-    Serial.println("[sensor] colour read failed (clear channel is zero)");
-    return false;
-  }
-
+// Read READING_CAPTURES snapshots of the same strip into a burst
+// document. Each snapshot is normalised against its own clear channel,
+// exactly like the calibration captures. The DHT22 is sampled once (its
+// minimum read interval is 2 s); temperature/humidity are replicated
+// across every snapshot. Returns false when a colour read fails.
+static bool readBurstSensors(JsonDocument& doc) {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
   if (isnan(temperature) || isnan(humidity)) {
@@ -136,11 +133,24 @@ static bool readSensors(JsonDocument& doc) {
   }
 
   doc["device_id"] = DEVICE_ID;
-  doc["rgb_r"] = rgbToInt(r / (float)c);
-  doc["rgb_g"] = rgbToInt(g / (float)c);
-  doc["rgb_b"] = rgbToInt(b / (float)c);
-  doc["temperature_c"] = temperature;
-  doc["humidity_pct"] = humidity;
+  JsonArray readings = doc["readings"].to<JsonArray>();
+  for (int i = 0; i < READING_CAPTURES; i++) {
+    uint16_t r, g, b, c;
+    tcs.getRawData(&r, &g, &b, &c);
+    if (c == 0) {
+      Serial.println("[sensor] colour read failed (clear channel is zero)");
+      return false;
+    }
+    JsonObject snapshot = readings.add<JsonObject>();
+    snapshot["rgb_r"] = rgbToInt(r / (float)c);
+    snapshot["rgb_g"] = rgbToInt(g / (float)c);
+    snapshot["rgb_b"] = rgbToInt(b / (float)c);
+    snapshot["temperature_c"] = temperature;
+    snapshot["humidity_pct"] = humidity;
+    if (i < READING_CAPTURES - 1) {
+      delay(READING_INTERVAL_MS);
+    }
+  }
   return true;
 }
 
@@ -259,7 +269,7 @@ static void handleSerialCommands() {
 }
 
 // Average CAL_CAPTURES readings and fill device_id + rgb channels
-// (normalized against the clear channel, same as readSensors).
+// (normalized against the clear channel, same as the burst path).
 // Returns false on sensor failure.
 static bool captureAveragedRgb(JsonDocument& doc) {
   long rSum = 0, gSum = 0, bSum = 0;
@@ -331,7 +341,7 @@ static bool captureCalibrationSample(JsonDocument& doc) {
     return false;
   }
 
-  // Average then normalize the clear channel (same as readSensors).
+  // Average then normalize the clear channel (same as the burst path).
   float r = rSum / (float)CAL_CAPTURES;
   float g = gSum / (float)CAL_CAPTURES;
   float b = bSum / (float)CAL_CAPTURES;
@@ -387,7 +397,7 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println();
-  Serial.println("[boot] Doctordrobe firmware 1.1.0 (calibration mode)");
+  Serial.println("[boot] Doctordrobe firmware 1.2.0 (burst reading + calibration)");
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_LED, OUTPUT);
@@ -474,10 +484,11 @@ void loop() {
     return;
   }
 
-  Serial.println("[btn] button pressed — taking reading");
+  Serial.printf("[btn] button pressed — capturing burst of %d readings\n",
+                READING_CAPTURES);
 
   JsonDocument doc;
-  if (!readSensors(doc)) {
+  if (!readBurstSensors(doc)) {
     Serial.println("[read] sensor error; keeping LED on for 5s");
     digitalWrite(PIN_LED, HIGH);
     delay(5000);
@@ -485,7 +496,7 @@ void loop() {
     return;
   }
 
-  int statusCode = postToBackend(doc, API_PATH);
+  int statusCode = postToBackend(doc, BURST_PATH);
 
   if (statusCode == 200 || statusCode == 201) {
     Serial.println("[ok] reading accepted — blinking LED 3x");

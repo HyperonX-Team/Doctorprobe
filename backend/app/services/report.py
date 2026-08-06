@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.checkup import Checkup
 from app.models.device_baseline import DeviceBaseline
 from app.models.device_reading import DeviceReading
@@ -27,17 +28,31 @@ class ReportService:
     """Creates checkups from real device readings."""
 
     @staticmethod
-    async def _latest_reading(
+    async def _latest_burst(
         db: AsyncSession, device_id: str
-    ) -> DeviceReading | None:
-        """Fetch the most recent device reading for a device."""
+    ) -> list[DeviceReading]:
+        """Fetch the most recent burst of snapshots for a device.
+
+        A burst is the newest cluster of readings captured within
+        ``READING_BURST_GAP_SECONDS`` of each other (a firmware button
+        press posts several snapshots of the same strip). Returns an
+        empty list when the device has never reported.
+        """
         result = await db.execute(
             select(DeviceReading)
             .where(DeviceReading.device_id == device_id)
-            .order_by(DeviceReading.created_at.desc())
-            .limit(1)
+            .order_by(DeviceReading.created_at.desc(), DeviceReading.id.desc())
         )
-        return result.scalar_one_or_none()
+        rows = list(result.scalars().all())
+        if not rows:
+            return []
+        gap = get_settings().READING_BURST_GAP_SECONDS
+        burst = [rows[0]]
+        for row in rows[1:]:
+            if (burst[-1].created_at - row.created_at).total_seconds() > gap:
+                break
+            burst.append(row)
+        return burst
 
     @staticmethod
     async def _get_baseline(
@@ -62,7 +77,7 @@ class ReportService:
 
     @staticmethod
     async def create_checkup(db: AsyncSession, user: User) -> Checkup:
-        """Analyse the user's latest device reading and persist a checkup.
+        """Analyse the user's latest device burst and persist a checkup.
 
         Args:
             db: Async database session.
@@ -74,8 +89,8 @@ class ReportService:
         Raises:
             HTTPException 409: when no device reading exists yet.
         """
-        reading = await ReportService._latest_reading(db, user.device_id)
-        if reading is None:
+        readings = await ReportService._latest_burst(db, user.device_id)
+        if not readings:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
@@ -84,32 +99,36 @@ class ReportService:
                 ),
             )
 
-        sensor_reading = {
-            "rgb_r": reading.rgb_r,
-            "rgb_g": reading.rgb_g,
-            "rgb_b": reading.rgb_b,
-            "temperature_c": reading.temperature_c,
-            "humidity_pct": reading.humidity_pct,
-        }
-        logger.info("using device reading %s", reading.id)
-
-        # Per-device white balance: gain-correct against the blank-pad
-        # baseline so optics drift does not bias the analysis.
         baseline = await ReportService._get_baseline(db, user.device_id)
+
+        snapshots = []
+        for reading in readings:
+            sensor_reading = {
+                "rgb_r": reading.rgb_r,
+                "rgb_g": reading.rgb_g,
+                "rgb_b": reading.rgb_b,
+                "temperature_c": reading.temperature_c,
+                "humidity_pct": reading.humidity_pct,
+            }
+            # Per-device white balance: gain-correct against the blank-pad
+            # baseline so optics drift does not bias the analysis.
+            if baseline is not None:
+                sensor_reading = analyzer.correct_reading(
+                    sensor_reading,
+                    {
+                        "rgb_r": baseline.rgb_r,
+                        "rgb_g": baseline.rgb_g,
+                        "rgb_b": baseline.rgb_b,
+                    },
+                )
+            snapshots.append(sensor_reading)
         if baseline is not None:
-            sensor_reading = analyzer.correct_reading(
-                sensor_reading,
-                {
-                    "rgb_r": baseline.rgb_r,
-                    "rgb_g": baseline.rgb_g,
-                    "rgb_b": baseline.rgb_b,
-                },
-            )
             logger.info("applied blank-pad baseline for %s", user.device_id)
+        logger.info("analysing burst of %d readings for checkup", len(snapshots))
 
         report = analyzer.generate_report(
             profile=ReportService._profile_from_user(user),
-            sensor_reading=sensor_reading,
+            sensor_reading=snapshots,
         )
 
         checkup = Checkup(
@@ -121,6 +140,7 @@ class ReportService:
                     "text_summary": report["text_summary"],
                     "overall_risk": report["overall_risk"],
                     "biomarkers": report["biomarkers"],
+                    "analysis": report["analysis"],
                 }
             ),
         )

@@ -18,6 +18,8 @@ from app.schemas.device import (
     DeviceBaselineResponse,
     DeviceReadingCreate,
     DeviceReadingResponse,
+    DeviceReadingsCreate,
+    DeviceReadingsResponse,
     DeviceStatus,
 )
 
@@ -57,6 +59,44 @@ async def create_reading(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not store device reading",
         )
+
+
+@router.post(
+    "/readings",
+    response_model=DeviceReadingsResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_device_api_key)],
+)
+async def create_readings(
+    payload: DeviceReadingsCreate, db: AsyncSession = Depends(get_db)
+) -> DeviceReadingsResponse:
+    """Ingest a burst of snapshots of the same strip.
+
+    The analyzer deconvolves the whole burst together (see
+    ``app/services/spectral.py``), so a burst gives the over-determined
+    system needed to resolve the five-analyte panel and report
+    per-analyte identifiability.
+    """
+    try:
+        rows = [
+            DeviceReading(device_id=payload.device_id, **snapshot.model_dump())
+            for snapshot in payload.readings
+        ]
+        db.add_all(rows)
+        await db.commit()
+        for row in rows:
+            await db.refresh(row)
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not store device readings",
+        )
+    return DeviceReadingsResponse(
+        device_id=payload.device_id,
+        count=len(rows),
+        readings=rows,
+    )
 
 
 @router.get("/latest", response_model=DeviceReadingResponse)

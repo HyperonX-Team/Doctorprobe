@@ -19,6 +19,36 @@ class DeviceReadingCreate(BaseModel):
     humidity_pct: float = Field(ge=0, le=100)
 
 
+class ReadingSnapshot(BaseModel):
+    """One snapshot within a firmware burst (device_id lives on the burst)."""
+
+    rgb_r: int = Field(ge=0, le=255)
+    rgb_g: int = Field(ge=0, le=255)
+    rgb_b: int = Field(ge=0, le=255)
+    temperature_c: float = Field(ge=-40, le=85)
+    humidity_pct: float = Field(ge=0, le=100)
+
+
+class DeviceReadingsCreate(BaseModel):
+    """Burst payload posted by the firmware to /api/devices/readings.
+
+    A burst is a rapid sequence of snapshots of the *same* strip; the
+    analyzer deconvolves them together to average out sensor noise and
+    quantify identifiability (see app/services/spectral.py).
+    """
+
+    device_id: str = Field(min_length=1, max_length=64)
+    readings: list[ReadingSnapshot] = Field(min_length=1, max_length=20)
+
+
+class DeviceReadingsResponse(BaseModel):
+    """Stored burst."""
+
+    device_id: str
+    count: int
+    readings: list[DeviceReadingResponse]
+
+
 class DeviceReadingResponse(BaseModel):
     """A stored device reading."""
 

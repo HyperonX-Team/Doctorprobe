@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     #: A device is considered "connected" if it was seen within this window.
     DEVICE_STALE_SECONDS: int = 300
 
+    #: Snapshots posted closer together than this are treated as one
+    #: "burst" of the same strip (see app/services/spectral.py).
+    READING_BURST_GAP_SECONDS: float = 45.0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
