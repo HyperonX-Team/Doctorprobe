@@ -46,6 +46,17 @@ export interface Biomarker {
   ref_high: number | null;
   state: BiomarkerState;
   message: string;
+  confidence?: number;
+}
+
+/** Backend: app/schemas/checkup.py -> AnalysisInfo */
+export interface AnalysisInfo {
+  method: string;
+  prior_source: string;
+  n_measurements: number;
+  condition_number?: number | null;
+  rank?: number | null;
+  reconstruction_residual?: number | null;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupSummary */
@@ -62,6 +73,7 @@ export interface CheckupSummary {
 export interface Checkup extends CheckupSummary {
   text_summary: string;
   biomarkers: Biomarker[];
+  analysis?: AnalysisInfo;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupCreate */

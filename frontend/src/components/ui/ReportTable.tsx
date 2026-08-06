@@ -30,6 +30,9 @@ export default function ReportTable({ biomarkers }: ReportTableProps) {
             <th scope="col" className="px-4 py-2.5 font-semibold">
               State
             </th>
+            <th scope="col" className="px-4 py-2.5 font-semibold">
+              Confidence
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -50,6 +53,11 @@ export default function ReportTable({ biomarkers }: ReportTableProps) {
                 >
                   {marker.state}
                 </span>
+              </td>
+              <td className="px-4 py-3 text-slate-500">
+                {marker.confidence != null
+                  ? `${Math.round(marker.confidence * 100)}%`
+                  : '—'}
               </td>
             </tr>
           ))}

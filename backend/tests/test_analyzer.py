@@ -206,7 +206,13 @@ def test_salinet_predictions_are_plausible():
                 ref_low = marker["ref_low"]
                 ref_high = marker["ref_high"]
                 assert math.isfinite(marker["value"])
-                assert ref_low * 0.4 <= marker["value"] <= ref_high * 1.6
+                # Epsilon absorbs the float boundary (0.1 * 0.4 rounds up
+                # by one ULP, so a stored 0.04 is a hair below it).
+                assert (
+                    ref_low * 0.4 - 1e-9
+                    <= marker["value"]
+                    <= ref_high * 1.6 + 1e-9
+                )
 
 
 def test_beer_lambert_fallback_without_model(monkeypatch):
@@ -259,3 +265,44 @@ def test_correct_reading_clamps_and_quantises():
     assert corrected["rgb_r"] == 255  # 250 * 2.55 clamps
     assert corrected["rgb_g"] == 13  # 10 * 1.275 rounds to 13
     assert corrected["rgb_b"] == 128  # no gain (blank == 255)
+
+
+def test_generate_report_accepts_burst():
+    """A list of snapshots (burst) is deconvolved as one measurement set."""
+    burst = [SENSOR, SENSOR]
+    report = analyzer.generate_report(PROFILE, burst)
+
+    assert report["analysis"]["method"] == "spectral_nnls"
+    assert report["analysis"]["n_measurements"] == 2
+    assert report["analysis"]["prior_source"] in {"salinet", "beer-lambert"}
+    assert report["overall_risk"] in {"low", "medium", "high"}
+
+
+def test_biomarkers_include_confidence_and_analysis():
+    """Every biomarker carries an identifiability confidence in 0..1."""
+    report = analyzer.generate_report(PROFILE, SENSOR)
+    for marker in report["biomarkers"]:
+        assert 0.0 <= marker["confidence"] <= 1.0
+        assert marker["message"]
+    assert report["analysis"]["method"] == "spectral_nnls"
+    assert report["analysis"]["n_measurements"] >= 1
+    assert report["analysis"]["condition_number"] > 0
+
+
+def test_empty_reading_list_raises():
+    """An empty burst is still a missing device reading."""
+    with pytest.raises(ValueError):
+        analyzer.generate_report(PROFILE, [])
+
+
+def test_repeated_burst_improves_confidence():
+    """Identical replicate snapshots lower the error bars, not the values."""
+    single = analyzer.generate_report(PROFILE, SENSOR)
+    burst = analyzer.generate_report(PROFILE, [SENSOR] * 5)
+
+    def confidences(report):
+        return {m["name"]: m["confidence"] for m in report["biomarkers"]}
+
+    single_conf, burst_conf = confidences(single), confidences(burst)
+    for name in single_conf:
+        assert burst_conf[name] >= single_conf[name]

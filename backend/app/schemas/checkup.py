@@ -32,6 +32,18 @@ class Biomarker(BaseModel):
     ref_high: float | None = None
     state: BiomarkerState
     message: str
+    confidence: float | None = None
+
+
+class AnalysisInfo(BaseModel):
+    """How a report was produced: solver, prior and measurement quality."""
+
+    method: str
+    prior_source: str
+    n_measurements: int
+    condition_number: float | None = None
+    rank: int | None = None
+    reconstruction_residual: float | None = None
 
 
 class Report(BaseModel):
@@ -40,6 +52,7 @@ class Report(BaseModel):
     overall_risk: RiskState
     text_summary: str
     biomarkers: list[Biomarker]
+    analysis: AnalysisInfo | None = None
 
 
 class CheckupSummary(BaseModel):

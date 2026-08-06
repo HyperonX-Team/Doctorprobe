@@ -273,3 +273,68 @@ async def test_share_checkup_awards_tokens_once(client, created_user):
     # No double credit.
     user = await client.get(f"/api/users/{created_user['id']}")
     assert user.json()["token_balance"] == 5
+
+
+def _snapshot(rgb_r=120, rgb_g=200, rgb_b=60):
+    return {
+        "rgb_r": rgb_r,
+        "rgb_g": rgb_g,
+        "rgb_b": rgb_b,
+        "temperature_c": 24.5,
+        "humidity_pct": 45.0,
+    }
+
+
+async def _post_burst(client, snapshots, device_id="doctordrobe_demo_001"):
+    return await client.post(
+        "/api/devices/readings",
+        json={"device_id": device_id, "readings": snapshots},
+    )
+
+
+async def _checkup_analysis(client, checkup_id, user_id):
+    response = await client.get(f"/api/checkups/{checkup_id}?user_id={user_id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["analysis"] is not None
+    return body
+
+
+@pytest.mark.asyncio
+async def test_batch_reading_endpoint_stores_burst(client, created_user):
+    """A burst POST stores every snapshot; a checkup deconvolves all of them."""
+    response = await _post_burst(client, [_snapshot() for _ in range(3)])
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["device_id"] == "doctordrobe_demo_001"
+    assert body["count"] == 3
+    assert len(body["readings"]) == 3
+    assert {r["rgb_r"] for r in body["readings"]} == {120}
+
+    created = await _create_checkup(client, created_user["id"])
+    assert created.status_code == 201, created.text
+    report = await _checkup_analysis(client, created.json()["id"], created_user["id"])
+    assert report["analysis"]["n_measurements"] == 3
+    assert report["analysis"]["method"] == "spectral_nnls"
+    for marker in report["biomarkers"]:
+        assert 0.0 <= marker["confidence"] <= 1.0
+
+
+@pytest.mark.asyncio
+async def test_batch_reading_validation(client):
+    """Empty bursts, oversized bursts and bad channels are rejected."""
+    assert (await _post_burst(client, [])).status_code == 422
+    assert (await _post_burst(client, [_snapshot()] * 21)).status_code == 422
+    bad = await _post_burst(client, [_snapshot(rgb_r=300)])
+    assert bad.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_checkup_clusters_recent_readings_into_one_burst(client, created_user):
+    """Readings posted close together form a single burst for the checkup."""
+    await _post_burst(client, [_snapshot(rgb_r=100) for _ in range(3)])
+    await _post_reading(client, rgb_r=250)  # immediately after -> same burst
+
+    created = await _create_checkup(client, created_user["id"])
+    report = await _checkup_analysis(client, created.json()["id"], created_user["id"])
+    assert report["analysis"]["n_measurements"] == 4

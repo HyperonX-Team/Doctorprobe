@@ -113,6 +113,7 @@ async def get_checkup(
         overall_risk=report["overall_risk"],
         text_summary=report["text_summary"],
         biomarkers=report["biomarkers"],
+        analysis=report.get("analysis"),
         created_at=checkup.created_at,
         is_shared=checkup.is_shared,
     )
