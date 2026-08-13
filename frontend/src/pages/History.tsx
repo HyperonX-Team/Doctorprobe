@@ -29,7 +29,7 @@ export default function History() {
     }
     setState({ kind: 'loading' });
     try {
-      const checkups = await api.listCheckups(user.id);
+      const checkups = await api.listCheckups();
       setState({ kind: 'ready', checkups });
     } catch (err) {
       setState({ kind: 'error', message: getErrorMessage(err) });
@@ -46,7 +46,7 @@ export default function History() {
     }
     setDeleting(true);
     try {
-      await api.deleteCheckup(pendingDelete.id, user.id);
+      await api.deleteCheckup(pendingDelete.id);
       toast.show('Checkup deleted', 'success');
       setPendingDelete(null);
       await load();

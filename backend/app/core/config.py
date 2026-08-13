@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     #: Tokens awarded to a user when they share a checkup.
     TOKEN_REWARD: int = 5
 
+    #: Lifetime of a browser session in days.
+    SESSION_TTL_DAYS: int = 30
+
+    #: Minimum accepted password length at registration / change.
+    PASSWORD_MIN_LENGTH: int = 8
+
+    #: Login rate limiting: max attempts per IP within the window.
+    AUTH_LOGIN_MAX_ATTEMPTS: int = 10
+    AUTH_LOGIN_WINDOW_SECONDS: int = 900
+
     #: A device is considered "connected" if it was seen within this window.
     DEVICE_STALE_SECONDS: int = 300
 

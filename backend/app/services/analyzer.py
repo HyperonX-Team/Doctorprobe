@@ -449,6 +449,7 @@ def _build_biomarker(key: str, value: float, confidence: float) -> dict[str, Any
         message = state_messages[state]
 
     return {
+        "key": key,
         "name": name,
         "value": round(value, 2),
         "unit": unit,
@@ -457,6 +458,92 @@ def _build_biomarker(key: str, value: float, confidence: float) -> dict[str, Any
         "state": state,
         "confidence": confidence,
         "message": message,
+    }
+
+
+def _measurement_quality(
+    readings: list[dict[str, Any]], meta: dict[str, Any]
+) -> dict[str, Any]:
+    """Grade the raw sensor capture: good | fair | poor.
+
+    Uses the burst statistics (per-channel coefficient of variation and
+    mean level) plus the spectral solver's conditioning and residual.
+    The goal is to tell the user when a number is not trustworthy and a
+    retake is warranted, instead of printing a confident-looking value
+    from a bad capture.
+    """
+    reasons: list[str] = []
+    recommended_action: str | None = None
+    poor = False
+    fair = False
+
+    n = meta["n_measurements"]
+    if n < 3:
+        fair = True
+        reasons.append(
+            f"Only {n} snapshot{'s' if n != 1 else ''} captured — a burst of "
+            "at least 3 is recommended for a reliable read."
+        )
+
+    # Per-channel coefficient of variation across the burst: how much the
+    # strip/lighting moved between snapshots.
+    for channel in ("rgb_r", "rgb_g", "rgb_b"):
+        values = [float(r.get(channel, 128)) for r in readings]
+        mean = sum(values) / len(values)
+        if len(values) > 1:
+            variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+            std = math.sqrt(variance)
+        else:
+            std = 0.0
+        cv = std / max(mean, 1e-9)
+        if cv > 0.15:
+            poor = True
+            reasons.append(
+                f"Readings vary between snapshots ({channel} variation "
+                f"{cv:.0%}) — hold the strip steady and retake."
+            )
+
+    # Absolute light levels: a strip under the sensor should sit well
+    # inside the ADC range.
+    means = [
+        sum(float(r.get(c, 128)) for r in readings) / len(readings)
+        for c in ("rgb_r", "rgb_g", "rgb_b")
+    ]
+    if all(m < 35 for m in means):
+        poor = True
+        reasons.append(
+            "Very little light reached the sensor — check the strip is "
+            "under the sensor and retake."
+        )
+    elif all(m > 245 for m in means):
+        poor = True
+        reasons.append(
+            "No colour reaction detected — the strip may be blank or expired."
+        )
+
+    if meta["reconstruction_residual"] > 0.25:
+        fair = True
+        reasons.append(
+            "Spectral fit residual is high — lighting may have changed "
+            "mid-scan."
+        )
+    if meta["condition_number"] > 200:
+        fair = True
+        reasons.append("Channels are weakly separated in this capture.")
+
+    if poor:
+        grade = "poor"
+        recommended_action = "retake_reading"
+    elif fair:
+        grade = "fair"
+        recommended_action = "review"
+    else:
+        grade = "good"
+
+    return {
+        "grade": grade,
+        "reasons": reasons,
+        "recommended_action": recommended_action,
     }
 
 
@@ -539,10 +626,13 @@ def generate_report(
         "reconstruction_residual": round(meta["reconstruction_residual"], 4),
     }
 
+    quality = _measurement_quality(readings, meta)
+
     return {
         "overall_risk": overall_risk,
         "summary": summary,
         "text_summary": text_summary,
         "biomarkers": biomarkers,
         "analysis": analysis,
+        "quality": quality,
     }

@@ -17,12 +17,12 @@ backend specifics.
 ```
 app/
   main.py            app factory, CORS, exception envelope, /health
-  api/routes/        users, checkups, devices, shares
+  api/routes/        auth, checkups, devices, shares, trends, calibration
   core/              config (env-driven), security, logging
   db/                base, async session, models
   schemas/           Pydantic v2 request/response models
-  services/          deterministic biomarker analyzer + report orchestration
-  utils/             crypto, map_range
+  services/          deterministic biomarker analyzer, trends, report orchestration
+  utils/             crypto, passwords, map_range
 tests/               pytest + pytest-asyncio (in-memory SQLite)
 ```
 
@@ -41,6 +41,10 @@ All settings are environment variables (see `.env.example`):
 | `LOG_LEVEL` | `INFO` | Root log level |
 | `TOKEN_REWARD` | `5` | Tokens per shared checkup |
 | `DEVICE_STALE_SECONDS` | `300` | Device “connected” window |
+| `SESSION_TTL_DAYS` | `30` | Browser session token lifetime |
+| `PASSWORD_MIN_LENGTH` | `8` | Minimum registration/change password length |
+| `AUTH_LOGIN_MAX_ATTEMPTS` | `10` | Per-IP login attempt budget |
+| `AUTH_LOGIN_WINDOW_SECONDS` | `900` | Login rate-limit window |
 
 ## Development
 
@@ -51,7 +55,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Tests (27): `python -m pytest`. They run against an in-memory async
+Tests (68): `python -m pytest`. They run against an in-memory async
 SQLite database — no services required.
 
 ## SaliNet sensor model

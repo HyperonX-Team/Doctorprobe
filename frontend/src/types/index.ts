@@ -9,6 +9,7 @@ export type BiomarkerState = 'low' | 'normal' | 'high';
 /** Backend: app/schemas/user.py -> UserResponse */
 export interface User {
   id: string;
+  email: string | null;
   age: number;
   sex: Sex;
   height_cm: number;
@@ -37,8 +38,47 @@ export type UserUpdate = Partial<
 /** Backend: app/schemas/user.py -> UserCreate (minus id/created_at) */
 export type UserCreate = Omit<User, 'id' | 'token_balance' | 'created_at'>;
 
+/** Backend: app/schemas/auth.py -> RegisterRequest */
+export interface RegisterInput {
+  email: string;
+  password: string;
+  age: number;
+  sex: Sex;
+  height_cm: number;
+  weight_kg: number;
+  activity_level: ActivityLevel;
+  share_data: boolean;
+  device_id: string;
+}
+
+/** Backend: app/schemas/auth.py -> LoginRequest */
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+/** Backend: app/schemas/auth.py -> ChangePasswordRequest */
+export interface ChangePasswordInput {
+  current_password: string;
+  new_password: string;
+}
+
+/** Backend: app/schemas/auth.py -> AuthResponse */
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+/** Backend: app/schemas/checkup.py -> MeasurementQuality */
+export interface MeasurementQuality {
+  grade: 'good' | 'fair' | 'poor';
+  reasons: string[];
+  recommended_action: string | null;
+}
+
 /** Backend: app/schemas/checkup.py -> Biomarker */
 export interface Biomarker {
+  key: string;
   name: string;
   value: number;
   unit: string;
@@ -65,6 +105,7 @@ export interface CheckupSummary {
   user_id: string;
   summary: string;
   overall_risk: RiskState;
+  quality_grade: string | null;
   created_at: string;
   is_shared: boolean;
 }
@@ -74,11 +115,7 @@ export interface Checkup extends CheckupSummary {
   text_summary: string;
   biomarkers: Biomarker[];
   analysis?: AnalysisInfo;
-}
-
-/** Backend: app/schemas/checkup.py -> CheckupCreate */
-export interface CheckupCreate {
-  user_id: string;
+  quality?: MeasurementQuality;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupCreateResponse */
@@ -87,6 +124,7 @@ export interface CheckupCreated {
   user_id: string;
   summary: string;
   overall_risk: RiskState;
+  quality_grade: string | null;
   created_at: string;
   is_shared: boolean;
 }
@@ -115,4 +153,74 @@ export interface DeviceReading {
 export interface DeviceStatus {
   connected: boolean;
   last_seen: string | null;
+}
+
+/** Backend: app/services/calibration_stats.py -> build_calibration_stats payload */
+export interface AnalyteCalibrationStats {
+  name: string;
+  unit: string;
+  count: number;
+  min_concentration: number | null;
+  max_concentration: number | null;
+  envelope_min: number;
+  envelope_max: number;
+  enough: boolean;
+  last_sample_at: string | null;
+  model_source: string | null;
+  model_metrics: Record<string, number>;
+}
+
+export interface CalibrationStats {
+  total_samples: number;
+  min_real_samples: number;
+  analytes: Record<string, AnalyteCalibrationStats>;
+  model: {
+    present: boolean;
+    model_name: string | null;
+    model_version: string | null;
+    trained_at: string | null;
+  };
+}
+
+/** Backend: app/services/trends.py -> build_trends payload */
+export interface TrendPoint {
+  date: string;
+  value: number;
+  state: BiomarkerState;
+  confidence: number | null;
+  name: string;
+  unit: string;
+}
+
+export interface TrendAlert {
+  type: string;
+  severity: 'info' | 'warning';
+  message: string;
+}
+
+export interface MarkerStats {
+  count: number;
+  mean: number;
+  std: number;
+  min: number;
+  max: number;
+  latest: number;
+}
+
+export interface MarkerTrend {
+  key: string;
+  name: string;
+  unit: string;
+  ref_low: number | null;
+  ref_high: number | null;
+  points: TrendPoint[];
+  stats: MarkerStats | null;
+  alerts: TrendAlert[];
+}
+
+export interface TrendsResponse {
+  window_days: number;
+  checkup_count: number;
+  alert_count: number;
+  markers: Record<string, MarkerTrend>;
 }

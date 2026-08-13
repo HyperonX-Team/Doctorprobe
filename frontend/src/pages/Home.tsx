@@ -27,7 +27,7 @@ export default function Home() {
     let cancelled = false;
     (async () => {
       try {
-        const checkups = await api.listCheckups(user.id);
+        const checkups = await api.listCheckups();
         if (!cancelled) {
           setState({ kind: 'ready', checkups });
         }

@@ -33,10 +33,8 @@ export default function Vault() {
     }
     setState({ kind: 'loading' });
     try {
-      const summaries = await api.listCheckups(user.id);
-      const full = await Promise.all(
-        summaries.map((s) => api.getCheckup(s.id, user.id)),
-      );
+      const summaries = await api.listCheckups();
+      const full = await Promise.all(summaries.map((s) => api.getCheckup(s.id)));
       setState({ kind: 'ready', checkups: full });
     } catch (err) {
       setState({ kind: 'error', message: getErrorMessage(err) });

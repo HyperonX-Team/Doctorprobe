@@ -1,5 +1,6 @@
-// Settings — profile management: data sharing toggle, device id, user id
-// with copy button, and account deletion.
+// Settings — account management: email, data sharing, device id,
+// change password, and account deletion. All calls run as the
+// authenticated user derived from the session token.
 
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -18,9 +19,14 @@ export default function Settings() {
   const [shareData, setShareData] = useState(user?.share_data ?? false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changing, setChanging] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const handleSave = async (event: FormEvent) => {
     event.preventDefault();
@@ -31,7 +37,7 @@ export default function Settings() {
     setSaving(true);
     setSaveError(null);
     try {
-      await api.updateUser(user.id, {
+      await api.updateMe({
         device_id: deviceId.trim(),
         share_data: shareData,
       });
@@ -44,16 +50,26 @@ export default function Settings() {
     }
   };
 
-  const handleCopyUserId = async () => {
-    if (!user) {
+  const handleChangePassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
       return;
     }
+    setChanging(true);
+    setPasswordError(null);
     try {
-      await navigator.clipboard.writeText(user.id);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.show('Could not copy user id', 'error');
+      await api.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      toast.show('Password changed — other sessions were signed out', 'success');
+    } catch (err) {
+      setPasswordError(getErrorMessage(err));
+    } finally {
+      setChanging(false);
     }
   };
 
@@ -63,7 +79,7 @@ export default function Settings() {
     }
     setDeleting(true);
     try {
-      await api.deleteUser(user.id);
+      await api.deleteMe();
       logout();
       toast.show('Account deleted', 'success');
       navigate('/welcome');
@@ -86,38 +102,41 @@ export default function Settings() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Manage your profile, privacy and device.
+          Manage your account, privacy and device.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Account
+        </p>
+        <dl className="mt-3 space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-slate-500">Email</dt>
+            <dd className="font-medium text-slate-800" data-testid="settings-email">
+              {user.email ?? '—'}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-slate-500">Account id</dt>
+            <dd
+              className="font-mono text-xs text-slate-700"
+              data-testid="settings-user-id"
+            >
+              {user.id}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-slate-500">Token balance</dt>
+            <dd className="font-semibold text-slate-800">{user.token_balance}</dd>
+          </div>
+        </dl>
       </div>
 
       <form
         onSubmit={handleSave}
         className="space-y-5 rounded-xl border border-slate-200 bg-white p-6"
       >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Your user id
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <code
-              className="flex-1 truncate rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700"
-              data-testid="settings-user-id"
-            >
-              {user.id}
-            </code>
-            <button
-              type="button"
-              onClick={() => void handleCopyUserId()}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-slate-400">
-            Used to identify your profile on this device.
-          </p>
-        </div>
-
         <div>
           <label
             htmlFor="device-id"
@@ -173,6 +192,72 @@ export default function Settings() {
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save settings'}
+        </button>
+      </form>
+
+      <form
+        onSubmit={handleChangePassword}
+        className="space-y-4 rounded-xl border border-slate-200 bg-white p-6"
+      >
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Change password</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Changing your password signs out every other session.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="current-password"
+              className="mb-1 block text-xs font-semibold text-slate-600"
+            >
+              Current password
+            </label>
+            <input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={inputClass}
+              data-testid="settings-current-password"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="new-password"
+              className="mb-1 block text-xs font-semibold text-slate-600"
+            >
+              New password
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={inputClass}
+              data-testid="settings-new-password"
+            />
+          </div>
+        </div>
+
+        {passwordError && (
+          <p
+            role="alert"
+            className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"
+          >
+            {passwordError}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={changing}
+          data-testid="settings-change-password"
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          {changing ? 'Changing…' : 'Change password'}
         </button>
       </form>
 

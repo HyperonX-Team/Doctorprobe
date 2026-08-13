@@ -3,6 +3,10 @@
 The test suite runs against an in-memory async SQLite database so it is
 fast, isolated, and requires no external services. Tables are created
 fresh per session via ``Base.metadata.create_all``.
+
+Identity in tests is an email + password (see ``app/api/routes/auth.py``):
+a user is registered and every authenticated request carries the returned
+bearer token in the ``Authorization`` header.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ from app.db.session import get_db
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
+
+DEFAULT_PASSWORD = "correct-horse-9!"
 
 
 @pytest_asyncio.fixture
@@ -55,9 +61,8 @@ async def client(db_engine):
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
-async def created_user(client):
-    """Helper: create a user and return the response body."""
+def default_profile(**overrides) -> dict:
+    """Standard registration profile; extra fields override the defaults."""
     payload = {
         "age": 34,
         "sex": "female",
@@ -67,6 +72,25 @@ async def created_user(client):
         "share_data": True,
         "device_id": "doctordrobe_demo_001",
     }
-    response = await client.post("/api/users", json=payload)
+    payload.update(overrides)
+    return payload
+
+
+def auth_headers(token: str) -> dict[str, str]:
+    """Bearer authorization header for an authenticated request."""
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def created_user(client):
+    """Helper: register a user and return {token, user}."""
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "tester@example.com",
+            "password": DEFAULT_PASSWORD,
+            **default_profile(),
+        },
+    )
     assert response.status_code == 201, response.text
     return response.json()

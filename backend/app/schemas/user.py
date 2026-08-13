@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 Sex = Literal["male", "female", "other"]
 ActivityLevel = Literal["sedentary", "light", "moderate", "active", "athlete"]
@@ -30,12 +30,8 @@ class UserBase(BaseModel):
     )
 
 
-class UserCreate(UserBase):
-    """Payload for POST /api/users."""
-
-
 class UserUpdate(BaseModel):
-    """Payload for PUT /api/users/{user_id} — every field is optional."""
+    """Payload for PUT /api/auth/me — every field is optional."""
 
     age: int | None = Field(default=None, ge=1, le=120)
     sex: Sex | None = None
@@ -52,5 +48,6 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    email: EmailStr | None = None
     token_balance: int
     created_at: datetime

@@ -68,7 +68,7 @@ uvicorn app.main:app --reload --port 8000
 ### 2.4 Run the tests
 
 ```bash
-pytest -q        # expect: 23 passed
+pytest -q        # expect: 68 passed
 ```
 
 ---
@@ -91,7 +91,7 @@ browser blocks requests.
 ### 3.2 Quality gates
 
 ```bash
-npm test          # Vitest + React Testing Library — expect: 20 passed
+npm test          # Vitest + React Testing Library — expect: 26 passed
 npm run lint      # ESLint, zero warnings allowed
 npm run build     # strict tsc typecheck + production bundle in dist/
 ```
@@ -118,9 +118,14 @@ Verify:
 ```bash
 curl http://localhost/health                  # ok
 curl http://localhost/api/devices/status?device_id=doctordrobe_demo_001
-curl -X POST http://localhost:8000/api/users -H "Content-Type: application/json" \
-  -d '{"age":34,"sex":"female","height_cm":165,"weight_kg":62}'
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correct-horse-9!","age":34,"sex":"female","height_cm":165,"weight_kg":62}'
 ```
+
+The register response includes a bearer `token`; send it as
+`Authorization: Bearer <token>` on every other request (the SPA does this
+automatically).
 
 Stop with `docker compose -f infra/docker-compose.yml down -v`
 (`-v` also deletes the postgres volume).

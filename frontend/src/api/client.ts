@@ -2,18 +2,24 @@
 // - All endpoints return typed promises.
 // - Non-2xx responses throw ApiError with the backend's `detail` message.
 // - 2xx-with-body responses are parsed as JSON.
+// - Authenticated requests carry the bearer token (from register/login)
+//   in the Authorization header; the owning user is derived from it.
 
 import { API_BASE_URL, ENDPOINTS } from './endpoints';
 import type {
+  AuthResponse,
+  CalibrationStats,
+  ChangePasswordInput,
   Checkup,
-  CheckupCreate,
   CheckupCreated,
   CheckupSummary,
   DeviceReading,
   DeviceStatus,
+  LoginInput,
+  RegisterInput,
   ShareResponse,
+  TrendsResponse,
   User,
-  UserCreate,
   UserUpdate,
 } from '../types';
 
@@ -32,11 +38,26 @@ interface ErrorEnvelope {
   detail?: string;
 }
 
+const TOKEN_KEY = 'doctordrobe_token';
+
+/** Store (or clear) the session bearer token. */
+export function setAuthToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> | undefined),
   };
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   let response: Response;
   try {
@@ -70,57 +91,76 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  /** POST /api/users */
-  createUser: (payload: UserCreate) =>
-    request<User>(ENDPOINTS.userCreate, {
+  /** POST /api/auth/register — creates the account and starts a session. */
+  register: (payload: RegisterInput) =>
+    request<AuthResponse>(ENDPOINTS.authRegister, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
-  /** GET /api/users/{id} */
-  getUser: (userId: string) => request<User>(ENDPOINTS.user(userId)),
+  /** POST /api/auth/login */
+  login: (payload: LoginInput) =>
+    request<AuthResponse>(ENDPOINTS.authLogin, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  /** PUT /api/users/{id} */
-  updateUser: (userId: string, payload: UserUpdate) =>
-    request<User>(ENDPOINTS.user(userId), {
+  /** POST /api/auth/logout — revokes the current session server-side. */
+  logout: () => request<{ detail: string }>(ENDPOINTS.authLogout, { method: 'POST' }),
+
+  /** GET /api/auth/me */
+  getMe: () => request<User>(ENDPOINTS.authMe),
+
+  /** PUT /api/auth/me */
+  updateMe: (payload: UserUpdate) =>
+    request<User>(ENDPOINTS.authMe, {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
 
-  /** DELETE /api/users/{id} */
-  deleteUser: (userId: string) =>
-    request<{ detail: string }>(ENDPOINTS.user(userId), { method: 'DELETE' }),
+  /** DELETE /api/auth/me — deletes the account and all checkups. */
+  deleteMe: () => request<{ detail: string }>(ENDPOINTS.authMe, { method: 'DELETE' }),
 
-  /** GET /api/users/{id}/checkups */
-  listCheckups: (userId: string) =>
-    request<CheckupSummary[]>(ENDPOINTS.userCheckups(userId)),
-
-  /** POST /api/checkups */
-  createCheckup: (payload: CheckupCreate) =>
-    request<CheckupCreated>(ENDPOINTS.checkupCreate, {
+  /** POST /api/auth/change-password — revokes every other session. */
+  changePassword: (payload: ChangePasswordInput) =>
+    request<{ detail: string }>(ENDPOINTS.authChangePassword, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
-  /** GET /api/checkups/{id}?user_id=... */
-  getCheckup: (checkupId: string, userId: string) =>
-    request<Checkup>(
-      `${ENDPOINTS.checkup(checkupId)}?user_id=${encodeURIComponent(userId)}`,
-    ),
+  /** GET /api/auth/me/checkups — summaries, newest first. */
+  listCheckups: () => request<CheckupSummary[]>(ENDPOINTS.authMyCheckups),
 
-  /** DELETE /api/checkups/{id} (body carries user_id) */
-  deleteCheckup: (checkupId: string, userId: string) =>
-    request<{ detail: string }>(ENDPOINTS.checkup(checkupId), {
-      method: 'DELETE',
-      body: JSON.stringify({ user_id: userId }),
-    }),
+  /** POST /api/checkups — analyzes the authenticated user's latest reading. */
+  createCheckup: () =>
+    request<CheckupCreated>(ENDPOINTS.checkupCreate, { method: 'POST' }),
+
+  /** GET /api/checkups/{id} */
+  getCheckup: (checkupId: string) => request<Checkup>(ENDPOINTS.checkup(checkupId)),
+
+  /** DELETE /api/checkups/{id} */
+  deleteCheckup: (checkupId: string) =>
+    request<{ detail: string }>(ENDPOINTS.checkup(checkupId), { method: 'DELETE' }),
 
   /** POST /api/checkups/{id}/share */
-  shareCheckup: (checkupId: string, userId: string) =>
-    request<ShareResponse>(ENDPOINTS.checkupShare(checkupId), {
-      method: 'POST',
-      body: JSON.stringify({ user_id: userId }),
-    }),
+  shareCheckup: (checkupId: string) =>
+    request<ShareResponse>(ENDPOINTS.checkupShare(checkupId), { method: 'POST' }),
+
+  /** GET /api/checkups/{id}/export — clinician PDF, returned as a blob. */
+  exportCheckup: (checkupId: string) => fetchBlob(ENDPOINTS.checkupExport(checkupId)),
+
+  /** GET /api/calibration/export — trainer CSV, returned as a blob. */
+  exportCalibrationCsv: () => fetchBlob(ENDPOINTS.calibrationExport),
+
+  /** GET /api/calibration/stats */
+  getCalibrationStats: () => request<CalibrationStats>(ENDPOINTS.calibrationStats),
+
+  /** DELETE /api/calibration/samples — clear all labeled samples. */
+  clearCalibrationSamples: () =>
+    request<{ detail: string }>(ENDPOINTS.calibrationSamples, { method: 'DELETE' }),
+
+  /** GET /api/trends?window_days=... */
+  getTrends: (windowDays = 30) => request<TrendsResponse>(ENDPOINTS.trends(windowDays)),
 
   /** GET /api/devices/latest?device_id=... */
   getLatestReading: (deviceId: string) =>
@@ -132,3 +172,36 @@ export const api = {
 };
 
 export { API_BASE_URL };
+
+/** Fetch a path as a raw blob with the bearer token attached. */
+async function fetchBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError(
+      0,
+      'Cannot reach the Doctordrobe server. Is the backend running?',
+    );
+  }
+
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as ErrorEnvelope;
+      if (typeof body.detail === 'string' && body.detail) {
+        message = body.detail;
+      }
+    } catch {
+      // Non-JSON error body; keep the generic message.
+    }
+    throw new ApiError(response.status, message);
+  }
+  return response.blob();
+}

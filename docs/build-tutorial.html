@@ -242,7 +242,7 @@ cp .env.example .env</code></pre>
         </ul>
 
         <h3>2.4 Run the tests</h3>
-        <pre><code>pytest -q    # expect: 23 passed</code></pre>
+        <pre><code>pytest -q    # expect: 68 passed</code></pre>
       </section>
 
       <section>
@@ -259,7 +259,7 @@ npm run dev</code></pre>
         </p>
 
         <h3>3.2 Quality gates</h3>
-        <pre><code>npm test          # Vitest + RTL — expect: 20 passed
+        <pre><code>npm test          # Vitest + RTL — expect: 26 passed
 npm run lint      # ESLint, zero warnings allowed
 npm run build     # strict tsc typecheck + production bundle</code></pre>
       </section>
@@ -286,8 +286,13 @@ docker compose -f infra/docker-compose.yml up --build</code></pre>
         </ol>
         <pre><code>curl http://localhost/health                  # ok
 curl http://localhost/api/devices/status?device_id=doctordrobe_demo_001
-curl -X POST http://localhost:8000/api/users -H "Content-Type: application/json" \
-  -d '{"age":34,"sex":"female","height_cm":165,"weight_kg":62}'</code></pre>
+curl -X POST http://localhost:8000/api/auth/register -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correct-horse-9!","age":34,"sex":"female","height_cm":165,"weight_kg":62}'</code></pre>
+        <p>
+          The register response includes a bearer <code>token</code>; send
+          it as <code>Authorization: Bearer &lt;token&gt;</code> on every
+          other request (the SPA does this automatically).
+        </p>
         <p>
           Stop with <code>docker compose -f infra/docker-compose.yml down -v</code>
           (<code>-v</code> also deletes the postgres volume).

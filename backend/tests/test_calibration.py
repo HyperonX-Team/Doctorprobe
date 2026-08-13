@@ -81,6 +81,62 @@ async def test_calibration_export_csv(client):
 
 
 @pytest.mark.asyncio
+async def test_calibration_stats_empty(client):
+    """No samples: every analyte shows zero count, not enough, no coverage."""
+    response = await client.get("/api/calibration/stats")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_samples"] == 0
+    assert body["min_real_samples"] == 15
+    assert set(body["analytes"]) == {"glucose", "crp", "cortisol", "siga"}
+    for analyte in body["analytes"].values():
+        assert analyte["count"] == 0
+        assert analyte["enough"] is False
+        assert analyte["min_concentration"] is None
+    # The shipped SaliNet artifact is present in the repo.
+    assert body["model"]["present"] is True
+    assert body["model"]["model_version"]
+
+
+@pytest.mark.asyncio
+async def test_calibration_stats_tracks_coverage(client):
+    """Counts and concentration spans accumulate per analyte."""
+    for _ in range(4):
+        await client.post(
+            "/api/calibration/samples", json=_sample_payload(analyte="glucose")
+        )
+    await client.post(
+        "/api/calibration/samples",
+        json=_sample_payload(analyte="glucose", concentration=1.0),
+    )
+
+    response = await client.get("/api/calibration/stats")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_samples"] == 5
+    glucose = body["analytes"]["glucose"]
+    assert glucose["count"] == 5
+    assert glucose["min_concentration"] == 1.0
+    assert glucose["max_concentration"] == 3.5
+    assert glucose["enough"] is False  # 5 < 15
+    assert body["analytes"]["crp"]["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_calibration_stats_meets_threshold(client):
+    """At 15 samples an analyte flips to enough=True."""
+    for _ in range(15):
+        await client.post(
+            "/api/calibration/samples", json=_sample_payload(analyte="siga")
+        )
+
+    response = await client.get("/api/calibration/stats")
+    body = response.json()
+    assert body["analytes"]["siga"]["enough"] is True
+    assert body["total_samples"] == 15
+
+
+@pytest.mark.asyncio
 async def test_calibration_list_and_clear(client):
     """Samples can be listed per analyte and cleared."""
     await client.post(

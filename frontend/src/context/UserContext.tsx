@@ -1,8 +1,10 @@
 // User session context.
 //
-// The user id lives in localStorage (no passwords in this system). On
-// startup the context re-hydrates the profile from the API; `login`,
-// `logout` and `refreshUser` manage the session.
+// Identity is an email + password. Register/login return an opaque bearer
+// token (stored in localStorage) plus the profile; on startup the context
+// re-hydrates the profile from GET /api/auth/me. `login`, `logout` and
+// `refreshUser` manage the session. Logout best-effort revokes the token
+// server-side before clearing local state.
 
 import {
   createContext,
@@ -13,17 +15,16 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../api/client';
+import { api, setAuthToken } from '../api/client';
+import { ApiError } from '../api/client';
 import type { User } from '../types';
-
-const STORAGE_KEY = 'doctordrobe_user_id';
 
 interface UserContextValue {
   /** Full profile, or null when logged out. */
   user: User | null;
   /** True while the profile is being re-hydrated from the API. */
   loading: boolean;
-  login: (user: User) => void;
+  login: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -35,19 +36,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
 
   const refreshUser = useCallback(async () => {
-    const storedId = localStorage.getItem(STORAGE_KEY);
-    if (!storedId) {
+    if (!localStorage.getItem('doctordrobe_token')) {
       setUser(null);
       setLoading(false);
       return;
     }
     try {
-      const profile = await api.getUser(storedId);
+      const profile = await api.getMe();
       setUser(profile);
-    } catch {
-      // Stale or invalid id (e.g. account deleted elsewhere): clear it.
-      localStorage.removeItem(STORAGE_KEY);
-      setUser(null);
+    } catch (err) {
+      // Stale or revoked token (session expired, password changed
+      // elsewhere, account deleted): clear it and sign out.
+      if (err instanceof ApiError && err.status === 401) {
+        setAuthToken(null);
+        setUser(null);
+      } else {
+        // Network trouble: keep the session but surface the failure via
+        // the page-level error paths; do not log the user out.
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -57,13 +64,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     void refreshUser();
   }, [refreshUser]);
 
-  const login = useCallback((profile: User) => {
-    localStorage.setItem(STORAGE_KEY, profile.id);
+  const login = useCallback((token: string, profile: User) => {
+    setAuthToken(token);
     setUser(profile);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    // Best-effort server-side revocation; local state is cleared either way.
+    void api.logout().catch(() => undefined);
+    setAuthToken(null);
     setUser(null);
   }, []);
 

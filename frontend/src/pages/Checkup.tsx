@@ -28,7 +28,7 @@ export default function Checkup() {
     }
     setPhase({ kind: 'creating' });
     try {
-      const checkup = await api.createCheckup({ user_id: user.id });
+      const checkup = await api.createCheckup();
       navigate(`/report/${checkup.id}`);
     } catch (err) {
       setPhase({ kind: 'error', message: getErrorMessage(err) });

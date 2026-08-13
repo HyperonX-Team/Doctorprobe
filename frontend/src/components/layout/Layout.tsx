@@ -8,7 +8,9 @@ const NAV_ITEMS = [
   { to: '/', label: 'Home', end: true },
   { to: '/checkup', label: 'Checkup' },
   { to: '/history', label: 'History' },
+  { to: '/trends', label: 'Trends' },
   { to: '/vault', label: 'Vault' },
+  { to: '/calibration', label: 'Calibration' },
   { to: '/settings', label: 'Settings' },
 ];
 

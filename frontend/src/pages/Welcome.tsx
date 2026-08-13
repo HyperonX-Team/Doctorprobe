@@ -1,8 +1,9 @@
-// Welcome — onboarding form. Creates the user profile and starts the
-// session. Uses plain controlled inputs with client-side validation.
+// Welcome — onboarding/registration form. Creates the email + password
+// account and profile, then starts the session. Uses plain controlled
+// inputs with client-side validation.
 
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useUser } from '../hooks/useUser';
 import type { ActivityLevel, Sex } from '../types';
@@ -10,6 +11,8 @@ import { getErrorMessage } from '../utils/errors';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 interface FormValues {
+  email: string;
+  password: string;
   age: string;
   sex: Sex;
   heightCm: string;
@@ -18,6 +21,8 @@ interface FormValues {
 }
 
 const INITIAL: FormValues = {
+  email: '',
+  password: '',
   age: '',
   sex: 'female',
   heightCm: '',
@@ -52,6 +57,12 @@ export default function Welcome() {
     const height = Number(values.heightCm);
     const weight = Number(values.weightKg);
 
+    if (!values.email.trim() || !/\S+@\S+\.\S+/.test(values.email.trim())) {
+      next.email = 'Enter a valid email address';
+    }
+    if (values.password.length < 8) {
+      next.password = 'Password must be at least 8 characters';
+    }
     if (!values.age || Number.isNaN(age) || age < 1 || age > 120) {
       next.age = 'Age must be between 1 and 120';
     }
@@ -73,7 +84,9 @@ export default function Welcome() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const user = await api.createUser({
+      const auth = await api.register({
+        email: values.email.trim(),
+        password: values.password,
         age: Number(values.age),
         sex: values.sex,
         height_cm: Number(values.heightCm),
@@ -82,7 +95,7 @@ export default function Welcome() {
         share_data: false,
         device_id: 'doctordrobe_demo_001',
       });
-      login(user);
+      login(auth.token, auth.user);
       navigate('/checkup');
     } catch (err) {
       setFormError(getErrorMessage(err));
@@ -116,14 +129,56 @@ export default function Welcome() {
         </div>
 
         <h2 className="mt-6 text-lg font-semibold text-slate-800">
-          Let's get to know you
+          Create your account
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Your profile tunes the biomarker analysis. No password needed — this device
-          keeps you signed in.
+          Your email and password protect your health data. Your profile tunes the
+          biomarker analysis.
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-1 block text-xs font-semibold text-slate-600"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={values.email}
+              onChange={(e) => set('email', e.target.value)}
+              className={inputClass(Boolean(errors.email))}
+              placeholder="you@example.com"
+              data-testid="welcome-email"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-1 block text-xs font-semibold text-slate-600"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              value={values.password}
+              onChange={(e) => set('password', e.target.value)}
+              className={inputClass(Boolean(errors.password))}
+              placeholder="At least 8 characters"
+              data-testid="welcome-password"
+            />
+            {errors.password && (
+              <p className="mt-1 text-xs text-rose-600">{errors.password}</p>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label
@@ -255,9 +310,16 @@ export default function Welcome() {
             data-testid="welcome-submit"
             className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
           >
-            Start my first checkup
+            Create account and start checkup
           </button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-slate-500">
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-brand-700 hover:underline">
+            Log in
+          </Link>
+        </p>
       </div>
     </div>
   );

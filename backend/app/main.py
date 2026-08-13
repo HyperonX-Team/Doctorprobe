@@ -14,7 +14,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import calibration, checkups, devices, shares, users
+from app.api.routes import (
+    auth,
+    calibration,
+    checkups,
+    devices,
+    shares,
+    trends,
+)
 from app.core.config import get_settings
 from app.core.logging import RequestContextMiddleware, get_request_id, setup_logging
 
@@ -74,11 +81,12 @@ def create_app() -> FastAPI:
         """Liveness probe for orchestrators and load balancers."""
         return {"status": "ok"}
 
-    app.include_router(users.router)
+    app.include_router(auth.router)
     app.include_router(checkups.router)
     app.include_router(devices.router)
     app.include_router(shares.router)
     app.include_router(calibration.router)
+    app.include_router(trends.router)
 
     return app
 

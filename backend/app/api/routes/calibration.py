@@ -29,6 +29,7 @@ from app.schemas.calibration import (
     CalibrationSampleCreate,
     CalibrationSampleResponse,
 )
+from app.services.calibration_stats import build_calibration_stats
 
 router = APIRouter(prefix="/api/calibration", tags=["calibration"])
 
@@ -77,6 +78,17 @@ async def create_calibration_sample(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not store calibration sample",
         )
+
+
+@router.get("/stats")
+async def calibration_stats(db: AsyncSession = Depends(get_db)) -> dict:
+    """Per-analyte sample coverage and current model status.
+
+    Read-only dashboard payload for the calibration workflow: how many
+    labeled samples exist per analyte (vs the trainer's threshold) and
+    what the deployed SaliNet manifest was trained on.
+    """
+    return await build_calibration_stats(db)
 
 
 @router.get("/samples", response_model=list[CalibrationSampleResponse])

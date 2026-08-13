@@ -31,6 +31,8 @@ class Checkup(Base):
     )
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     overall_risk: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Measurement quality grade: "good" | "fair" | "poor" (see analyzer).
+    quality_grade: Mapped[str | None] = mapped_column(String(16), nullable=True)
     encrypted_data: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False

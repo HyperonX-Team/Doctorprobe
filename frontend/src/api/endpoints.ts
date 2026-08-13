@@ -8,12 +8,20 @@ export const API_BASE_URL: string =
 
 export const ENDPOINTS = {
   health: '/health',
-  userCreate: '/api/users',
-  user: (userId: string) => `/api/users/${userId}`,
-  userCheckups: (userId: string) => `/api/users/${userId}/checkups`,
+  authRegister: '/api/auth/register',
+  authLogin: '/api/auth/login',
+  authLogout: '/api/auth/logout',
+  authMe: '/api/auth/me',
+  authChangePassword: '/api/auth/change-password',
+  authMyCheckups: '/api/auth/me/checkups',
   checkupCreate: '/api/checkups',
   checkup: (checkupId: string) => `/api/checkups/${checkupId}`,
+  checkupExport: (checkupId: string) => `/api/checkups/${checkupId}/export`,
   checkupShare: (checkupId: string) => `/api/checkups/${checkupId}/share`,
+  trends: (windowDays: number) => `/api/trends?window_days=${windowDays}`,
+  calibrationStats: '/api/calibration/stats',
+  calibrationExport: '/api/calibration/export',
+  calibrationSamples: '/api/calibration/samples',
   deviceLatest: (deviceId: string) =>
     `/api/devices/latest?device_id=${encodeURIComponent(deviceId)}`,
   deviceStatus: (deviceId: string) =>

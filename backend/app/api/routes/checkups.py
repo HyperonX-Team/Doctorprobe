@@ -1,16 +1,22 @@
-"""Checkup endpoints: create (device-driven), read, delete, share."""
+"""Checkup endpoints: create (device-driven), read, delete, share.
+
+The owning user is always derived from the session token
+(``get_current_user``) — no user id is accepted from the client, so a
+token can never act on another user's checkups.
+"""
 
 from __future__ import annotations
 
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.checkup import Checkup
 from app.models.share_event import ShareEvent
@@ -19,12 +25,13 @@ from app.schemas.checkup import (
     CheckupCreate,
     CheckupCreateResponse,
     CheckupResponse,
-    DeleteCheckupRequest,
-    ShareCheckupRequest,
     ShareResponse,
 )
+from app.services.export import build_clinician_pdf
 from app.services.report import ReportService
 from app.utils import crypto
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/checkups", tags=["checkups"])
 
@@ -40,20 +47,9 @@ async def _get_checkup_or_404(db: AsyncSession, checkup_id: uuid.UUID) -> Checku
     return checkup
 
 
-async def _get_user_or_404(db: AsyncSession, user_id: uuid.UUID) -> User:
-    """Load a user by id or raise 404."""
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-    return user
-
-
-def _assert_ownership(checkup: Checkup, user_id: uuid.UUID) -> None:
+def _assert_ownership(checkup: Checkup, user: User) -> None:
     """Guard: only the owning user may act on a checkup."""
-    if checkup.user_id != user_id:
+    if checkup.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Checkup does not belong to this user",
@@ -62,17 +58,18 @@ def _assert_ownership(checkup: Checkup, user_id: uuid.UUID) -> None:
 
 @router.post("", response_model=CheckupCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_checkup(
-    payload: CheckupCreate, db: AsyncSession = Depends(get_db)
+    payload: CheckupCreate,
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
 ) -> CheckupCreateResponse:
-    """Analyse the user's latest device reading.
+    """Analyse the authenticated user's latest device reading.
 
     Reports are always derived from physical sensor data; when the user's
     device has never posted a reading, a 409 is returned. The full report
     is encrypted at rest.
     """
-    user = await _get_user_or_404(db, payload.user_id)
     try:
-        checkup = await ReportService.create_checkup(db, user)
+        checkup = await ReportService.create_checkup(db, current)
         await db.commit()
         await db.refresh(checkup)
     except HTTPException:
@@ -90,6 +87,7 @@ async def create_checkup(
         user_id=checkup.user_id,
         summary=checkup.summary,
         overall_risk=checkup.overall_risk,
+        quality_grade=checkup.quality_grade,
         created_at=checkup.created_at,
         is_shared=checkup.is_shared,
     )
@@ -98,12 +96,12 @@ async def create_checkup(
 @router.get("/{checkup_id}", response_model=CheckupResponse)
 async def get_checkup(
     checkup_id: uuid.UUID,
-    user_id: uuid.UUID = Query(..., description="Owning user id"),
     db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
 ) -> CheckupResponse:
     """Return a checkup with its decrypted full report."""
     checkup = await _get_checkup_or_404(db, checkup_id)
-    _assert_ownership(checkup, user_id)
+    _assert_ownership(checkup, current)
 
     report = crypto.decrypt_json(checkup.encrypted_data)
     return CheckupResponse(
@@ -114,27 +112,43 @@ async def get_checkup(
         text_summary=report["text_summary"],
         biomarkers=report["biomarkers"],
         analysis=report.get("analysis"),
+        quality=report.get("quality"),
         created_at=checkup.created_at,
         is_shared=checkup.is_shared,
+    )
+
+
+@router.get("/{checkup_id}/export", response_class=Response)
+async def export_checkup_pdf(
+    checkup_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Response:
+    """Return a clinician-facing PDF of the checkup (owner only)."""
+    checkup = await _get_checkup_or_404(db, checkup_id)
+    _assert_ownership(checkup, current)
+
+    pdf_bytes = await build_clinician_pdf(db, checkup, current)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="doctordrobe-report-{checkup.id}.pdf"'
+            )
+        },
     )
 
 
 @router.delete("/{checkup_id}", status_code=status.HTTP_200_OK)
 async def delete_checkup(
     checkup_id: uuid.UUID,
-    payload: DeleteCheckupRequest | None = None,
-    user_id: uuid.UUID | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
 ) -> dict:
-    """Delete a checkup. Ownership may be passed as JSON body or query param."""
+    """Delete one of the authenticated user's checkups."""
     checkup = await _get_checkup_or_404(db, checkup_id)
-    owner_id = payload.user_id if payload else user_id
-    if owner_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="user_id is required (body or query parameter)",
-        )
-    _assert_ownership(checkup, owner_id)
+    _assert_ownership(checkup, current)
 
     try:
         await db.execute(delete(Checkup).where(Checkup.id == checkup_id))
@@ -151,13 +165,13 @@ async def delete_checkup(
 @router.post("/{checkup_id}/share", response_model=ShareResponse)
 async def share_checkup(
     checkup_id: uuid.UUID,
-    payload: ShareCheckupRequest,
     db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
 ) -> ShareResponse:
     """Share a checkup and award tokens (once per checkup)."""
     settings = get_settings()
     checkup = await _get_checkup_or_404(db, checkup_id)
-    _assert_ownership(checkup, payload.user_id)
+    _assert_ownership(checkup, current)
 
     if checkup.is_shared:
         raise HTTPException(
@@ -165,10 +179,9 @@ async def share_checkup(
             detail="This checkup has already been shared",
         )
 
-    user = await _get_user_or_404(db, payload.user_id)
     try:
         checkup.is_shared = True
-        user.token_balance += settings.TOKEN_REWARD
+        current.token_balance += settings.TOKEN_REWARD
         db.add(
             ShareEvent(
                 checkup_id=checkup.id,
@@ -176,7 +189,7 @@ async def share_checkup(
             )
         )
         await db.commit()
-        await db.refresh(user)
+        await db.refresh(current)
     except IntegrityError:
         # Concurrent share lost the race: the unique constraint on
         # share_events.checkup_id is the source of truth.
@@ -195,6 +208,6 @@ async def share_checkup(
     return ShareResponse(
         checkup_id=checkup.id,
         tokens_awarded=settings.TOKEN_REWARD,
-        new_balance=user.token_balance,
+        new_balance=current.token_balance,
         is_shared=True,
     )

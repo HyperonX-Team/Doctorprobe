@@ -18,10 +18,10 @@ derived from a real device reading.
 ```
 ┌────────────────────────┐          HTTPS          ┌───────────────────────────┐
 │ ESP32 (Arduino)        │  ─────────────────────► │ FastAPI backend           │
-│  TCS34725 RGB sensor   │   POST /api/devices/    │  /api/users              │
+│  TCS34725 RGB sensor   │   POST /api/devices/    │  /api/auth               │
 │  DHT22 temp/humidity   │   reading               │  /api/checkups           │
 │  Button + status LED   │                         │  /api/devices            │
-│  ArduinoJson over HTTP │                         │  /api/shares             │
+│  ArduinoJson over HTTP │                         │  /api/trends             │
 └────────────────────────┘                         └─────────────┬─────────────┘
                                                                  │ SQLAlchemy 2.0
                                                                  │ (async ORM)
@@ -121,52 +121,96 @@ Full parts list, wiring diagram, and assembly steps:
 Base URL `/api`. All errors use `{"detail": "message"}`. Interactive
 docs at `/docs` (Swagger UI).
 
-### Users
+### Auth
 
-| Method | Path                | Body / Query                | Returns                |
-| ------ | ------------------- | --------------------------- | ---------------------- |
-| POST   | `/api/users`        | `UserCreate`                | `UserResponse` (201)   |
-| GET    | `/api/users/{id}`   | —                           | `UserResponse`         |
-| PUT    | `/api/users/{id}`   | `UserUpdate` (partial)      | `UserResponse`         |
-| DELETE | `/api/users/{id}`   | —                           | `{"detail": ...}`      |
-| GET    | `/api/users/{id}/checkups` | —                    | `CheckupSummary[]`     |
+Identity is email + password. Register/login return an opaque bearer
+token plus the profile; every other authenticated request carries it in
+the `Authorization: Bearer` header, and the owning user is always derived
+from that token — never from a client-supplied id. Tokens are stored
+(hashed) in the `sessions` table, expire after `SESSION_TTL_DAYS`, and
+can be revoked individually (logout) or in bulk (password change,
+account deletion). Login is rate-limited per IP
+(`AUTH_LOGIN_MAX_ATTEMPTS` / `AUTH_LOGIN_WINDOW_SECONDS`).
 
-**Create user**
+| Method | Path | Body / Query | Returns |
+| ------ | ---- | ------------ | ------- |
+| POST | `/api/auth/register` | `RegisterRequest` (profile + email + password) | `AuthResponse` (201) |
+| POST | `/api/auth/login` | `LoginRequest` | `AuthResponse` |
+| POST | `/api/auth/logout` | — | `{"detail": ...}` |
+| GET | `/api/auth/me` | — | `UserResponse` |
+| PUT | `/api/auth/me` | `UserUpdate` (partial) | `UserResponse` |
+| DELETE | `/api/auth/me` | — | `{"detail": ...}` |
+| POST | `/api/auth/change-password` | `ChangePasswordRequest` | `{"detail": ...}` |
+| GET | `/api/auth/me/checkups` | — | `CheckupSummary[]` |
+
+**Register**
 
 ```bash
-curl -X POST http://localhost:8000/api/users \
+curl -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"age":34,"sex":"female","height_cm":165,"weight_kg":62,"activity_level":"moderate"}'
+  -d '{"email":"you@example.com","password":"correct-horse-9!","age":34,"sex":"female","height_cm":165,"weight_kg":62,"activity_level":"moderate"}'
 ```
 
 ```json
 {
-  "id": "274078c2-c56b-44c6-8785-6c1bb9ec472c",
-  "age": 34,
-  "sex": "female",
-  "height_cm": 165.0,
-  "weight_kg": 62.0,
-  "activity_level": "moderate",
-  "share_data": false,
-  "token_balance": 0,
-  "device_id": "doctordrobe_demo_001",
-  "created_at": "2026-07-31T20:20:58Z"
+  "token": "Qw9pV...opaque-bearer-token...",
+  "user": {
+    "id": "274078c2-c56b-44c6-8785-6c1bb9ec472c",
+    "email": "you@example.com",
+    "age": 34,
+    "sex": "female",
+    "height_cm": 165.0,
+    "weight_kg": 62.0,
+    "activity_level": "moderate",
+    "share_data": false,
+    "token_balance": 0,
+    "device_id": "doctordrobe_demo_001",
+    "created_at": "2026-07-31T20:20:58Z"
+  }
 }
+```
+
+**Login** (subsequent requests send `Authorization: Bearer <token>`):
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correct-horse-9!"}'
+
+curl http://localhost:8000/api/auth/me -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Checkups
 
+All checkup endpoints require `Authorization: Bearer <token>`; the owning
+user is resolved from the token.
+
 | Method | Path | Body / Query | Returns |
 | ------ | ---- | ------------ | ------- |
-| POST | `/api/checkups` | `{"user_id"}` | `CheckupCreated` (201) |
-| GET | `/api/checkups/{id}` | `?user_id=` | `CheckupResponse` (decrypted) |
-| DELETE | `/api/checkups/{id}` | `{"user_id"}` body or query | `{"detail": ...}` |
-| POST | `/api/checkups/{id}/share` | `{"user_id"}` | `ShareResponse` |
+| POST | `/api/checkups` | — | `CheckupCreated` (201) |
+| GET | `/api/checkups/{id}` | — | `CheckupResponse` (decrypted) |
+| DELETE | `/api/checkups/{id}` | — | `{"detail": ...}` |
+| POST | `/api/checkups/{id}/share` | — | `ShareResponse` |
 
 `POST /api/checkups` derives the report from the user's latest device
 reading and returns **409** when no reading exists yet. Sharing awards
 `TOKEN_REWARD` (default 5) tokens once per checkup; a second share
-returns **409**.
+returns **409**. Reading or sharing another user's checkup returns
+**403**.
+
+### Trends
+
+| Method | Path | Query | Returns |
+| ------ | ---- | ----- | ------- |
+| GET | `/api/trends` | `?window_days=` (1–365, default 30) | per-marker series, stats, alerts |
+
+`GET /api/trends` decrypts the authenticated user's own checkups and
+returns, per marker: a time series (oldest→newest), window statistics,
+and deterministic alerts — `rising_trend` / `falling_trend` (last three
+values moving together), `deviation_from_baseline` (> 2 standard
+deviations from the user's earlier readings), and
+`repeated_out_of_range` / `new_out_of_range`. Alerts are conservative
+heads-ups, never a diagnosis.
 
 ### Devices
 
@@ -209,6 +253,7 @@ literature-plausible ranges:
   "biomarkers": [
     {
       "name": "Salivary Glucose",
+      "key": "glucose",
       "value": 4.2,
       "unit": "mg/dL",
       "ref_low": 0.5,
@@ -216,12 +261,26 @@ literature-plausible ranges:
       "state": "normal",
       "message": "Salivary Glucose is within the reference range. Keep it up!"
     }
-  ]
+  ],
+  "quality": {
+    "grade": "good",
+    "reasons": [],
+    "recommended_action": null
+  }
 }
 ```
 
 Reports are encrypted with Fernet (`encrypted_data`) before storage; the
 `GET /api/checkups/{id}` endpoint returns the decrypted payload.
+
+Every report also carries a **measurement quality** verdict
+(`quality.grade` ∈ `good` | `fair` | `poor`, plus human-readable
+`reasons` and a `recommended_action`). It is derived from burst
+statistics (snapshot-to-snapshot variation, absolute light levels) and
+the spectral solver's conditioning/residual; a `poor` grade recommends
+retaking the reading so untrustworthy numbers are flagged instead of
+printed with false confidence. The grade is stored on each checkup
+(`quality_grade`) for list views.
 
 ### Calibration (make SaliNet real)
 
@@ -260,11 +319,14 @@ enabled), `GET /api/calibration/samples`, `GET /api/calibration/export`,
 
 ## Security notes
 
-- **No passwords.** Identity is a server-generated UUID kept in the
-  browser; a device is identified by `device_id`. For production,
-  replace the demo device identity with a real API key — the
-  `verify_device_api_key` dependency in `app/core/security.py` is the
-  pluggable seam (it can be promoted to global middleware).
+- **Authentication.** Identity is email + password, hashed with
+  `pbkdf2_hmac` (per-user random salt, high iterations) in
+  `app/utils/passwords.py`. Sessions are opaque bearer tokens (32 random
+  bytes) whose SHA-256 digest is stored in `sessions`, so a database leak
+  exposes no usable credentials or tokens. Tokens expire
+  (`SESSION_TTL_DAYS`), are revoked on logout/password change/account
+  deletion, and login is rate-limited per IP. All ownership checks run
+  server-side from the token — endpoints never accept a user id.
 - **Fernet key.** `FERNET_KEY` (derived via SHA-256) encrypts reports at
   rest. Generate a strong value:
   ```bash
@@ -286,8 +348,8 @@ enabled), `GET /api/calibration/samples`, `GET /api/calibration/export`,
 
 | Suite | Command |
 | ----- | ------- |
-| Backend (pytest, 24 tests) | `cd backend && .venv/Scripts/python -m pytest` |
-| Frontend (Vitest + RTL, 20 tests) | `cd frontend && npm test` |
+| Backend (pytest, 68 tests) | `cd backend && .venv/Scripts/python -m pytest` |
+| Frontend (Vitest + RTL, 26 tests) | `cd frontend && npm test` |
 | Frontend lint + typecheck | `cd frontend && npm run lint && npm run build` |
 | Firmware compile | `arduino-cli compile --fqbn esp32:esp32:esp32 arduino/doctordrobe` |
 

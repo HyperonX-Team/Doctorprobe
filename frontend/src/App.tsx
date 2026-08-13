@@ -10,12 +10,14 @@ import {
 import { UserProvider, useUserContext } from './context/UserContext';
 import Layout from './components/layout/Layout';
 import Welcome from './pages/Welcome';
+import Login from './pages/Login';
 import Home from './pages/Home';
 import Checkup from './pages/Checkup';
 import Report from './pages/Report';
 import History from './pages/History';
 import Vault from './pages/Vault';
 import Settings from './pages/Settings';
+import Calibration from './pages/Calibration';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
 /** Redirect to /welcome when there is no active user session. */
@@ -35,8 +37,8 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-/** Redirect signed-in users away from the welcome page. */
-function RedirectIfAuthed() {
+/** Redirect signed-in users away from the auth pages. */
+function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUserContext();
   if (loading) {
     return null;
@@ -44,13 +46,25 @@ function RedirectIfAuthed() {
   if (user) {
     return <Navigate to="/" replace />;
   }
-  return <Welcome />;
+  return <>{children}</>;
 }
 
 const router = createBrowserRouter([
   {
     path: '/welcome',
-    element: <RedirectIfAuthed />,
+    element: (
+      <RedirectIfAuthed>
+        <Welcome />
+      </RedirectIfAuthed>
+    ),
+  },
+  {
+    path: '/login',
+    element: (
+      <RedirectIfAuthed>
+        <Login />
+      </RedirectIfAuthed>
+    ),
   },
   {
     element: <RequireAuth />,
@@ -64,6 +78,7 @@ const router = createBrowserRouter([
           { path: 'report/:checkupId', element: <Report /> },
           { path: 'history', element: <History /> },
           { path: 'vault', element: <Vault /> },
+          { path: 'calibration', element: <Calibration /> },
           { path: 'settings', element: <Settings /> },
         ],
       },

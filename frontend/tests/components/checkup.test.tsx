@@ -14,6 +14,7 @@ import type { CheckupCreated, User } from '../../src/types';
 
 const mockUser: User = {
   id: 'user-123',
+  email: 'tester@example.com',
   age: 34,
   sex: 'female',
   height_cm: 165,
@@ -30,6 +31,7 @@ const mockCreated: CheckupCreated = {
   user_id: mockUser.id,
   summary: 'summary',
   overall_risk: 'low',
+  quality_grade: 'good',
   created_at: '2026-07-31T10:00:00Z',
   is_shared: false,
 };
@@ -51,7 +53,7 @@ function json(body: unknown, status = 200): Response {
 function mockFetch() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = String(input);
-    if (url.includes('/api/users/')) {
+    if (url.includes('/api/auth/me')) {
       return json(mockUser);
     }
     if (url.includes('/api/devices/status')) {
@@ -65,13 +67,13 @@ function mockFetch() {
 function AuthedHarness({ children }: { children: React.ReactNode }) {
   const { login } = useUserContext();
   useEffect(() => {
-    login(mockUser);
+    login('token-abc', mockUser);
   }, [login]);
   return <>{children}</>;
 }
 
 function renderCheckup() {
-  localStorage.setItem('doctordrobe_user_id', mockUser.id);
+  localStorage.setItem('doctordrobe_token', 'token-abc');
   return render(
     <UserProvider>
       <MemoryRouter initialEntries={['/checkup']}>
@@ -117,7 +119,7 @@ describe('Checkup', () => {
     await user.click(await screen.findByTestId('checkup-scan'));
 
     await waitFor(() => {
-      expect(createCheckupMock).toHaveBeenCalledWith({ user_id: mockUser.id });
+      expect(createCheckupMock).toHaveBeenCalledWith();
     });
     expect(await screen.findByText('REPORT PAGE')).toBeInTheDocument();
   });

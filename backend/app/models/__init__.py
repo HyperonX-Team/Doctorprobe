@@ -4,6 +4,7 @@ from app.models.calibration_sample import CalibrationSample
 from app.models.checkup import Checkup
 from app.models.device_baseline import DeviceBaseline
 from app.models.device_reading import DeviceReading
+from app.models.session import Session
 from app.models.share_event import ShareEvent
 from app.models.user import User
 
@@ -14,4 +15,5 @@ __all__ = [
     "ShareEvent",
     "CalibrationSample",
     "DeviceBaseline",
+    "Session",
 ]

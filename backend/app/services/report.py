@@ -131,16 +131,19 @@ class ReportService:
             sensor_reading=snapshots,
         )
 
+        quality = report.get("quality")
         checkup = Checkup(
             user_id=user.id,
             summary=report["summary"],
             overall_risk=report["overall_risk"],
+            quality_grade=quality["grade"] if quality else None,
             encrypted_data=crypto.encrypt_json(
                 {
                     "text_summary": report["text_summary"],
                     "overall_risk": report["overall_risk"],
                     "biomarkers": report["biomarkers"],
                     "analysis": report["analysis"],
+                    "quality": quality,
                 }
             ),
         )
