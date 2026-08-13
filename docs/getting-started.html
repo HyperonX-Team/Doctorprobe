@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Get Doctordrobe running in minutes: Docker Compose or local dev, create an account, and run your first checkup."
+    />
+    <title>Getting started — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Getting started</span>
+        </div>
+        <article>
+          <h1>Getting started</h1>
+          <p class="lede">
+            Run the whole stack on your machine, create an account, and take your first
+            checkup — no hardware required for the software path.
+          </p>
+
+          <h2 id="prerequisites">Prerequisites</h2>
+          <table>
+            <thead>
+              <tr><th>Tool</th><th>Version</th><th>Used for</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Python</td><td>3.11+</td><td>Backend (FastAPI, pytest)</td></tr>
+              <tr><td>Node.js + npm</td><td>20.x</td><td>Frontend (Vite, Vitest)</td></tr>
+              <tr><td>Docker + Docker Compose</td><td>latest</td><td>Full-stack run (optional)</td></tr>
+              <tr><td>arduino-cli or Arduino IDE</td><td>1.x / 2.x</td><td>Firmware (optional)</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="docker">Option A — Docker Compose (fastest)</h2>
+          <p>
+            The Compose stack starts PostgreSQL, runs Alembic migrations automatically,
+            and serves the SPA through Nginx:
+          </p>
+          <pre><code>cp .env.example .env      # then edit FERNET_KEY / DEVICE_API_KEY
+docker compose -f infra/docker-compose.yml up --build</code></pre>
+          <ul>
+            <li>Frontend: <code>http://localhost</code></li>
+            <li>Backend API + OpenAPI docs: <code>http://localhost:8000/docs</code></li>
+            <li>Health checks: <code>http://localhost/health</code> and <code>http://localhost:8000/health</code></li>
+          </ul>
+
+          <h2 id="local">Option B — local development</h2>
+          <h3>Backend</h3>
+          <pre><code>cd backend
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000</code></pre>
+          <h3>Frontend</h3>
+          <pre><code>cd frontend
+npm install
+npm run dev       # http://localhost:5173</code></pre>
+          <p>
+            Add <code>http://localhost:5173</code> to <code>CORS_ORIGINS</code> in the
+            backend <code>.env</code> if the browser blocks requests.
+          </p>
+
+          <h2 id="account">Create an account</h2>
+          <p>
+            Open the app and click <strong>Create an account</strong>. Registration asks
+            for an email, a password (min 8 characters), and the profile fields the
+            analysis adjusts for (age, sex, height, weight, activity level). The backend
+            normalizes the email, hashes the password, and returns a bearer token that
+            keeps you signed in.
+          </p>
+
+          <h2 id="first-checkup">Run your first checkup</h2>
+          <p>
+            Every checkup is derived from a <strong>real device reading</strong> — there
+            is no simulated mode. With no physical device yet, use the API to post a
+            reading, then create the checkup from the UI:
+          </p>
+          <pre><code># 1. Register (returns a token + user profile)
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correct-horse-9!",
+       "age":34,"sex":"female","height_cm":165,"weight_kg":62,
+       "activity_level":"moderate","device_id":"doctordrobe_demo_001"}'
+
+# 2. Post a device reading (no auth needed when DEVICE_API_KEY is unset)
+curl -X POST http://localhost:8000/api/devices/reading \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"doctordrobe_demo_001","rgb_r":120,"rgb_g":200,
+       "rgb_b":60,"temperature_c":24.5,"humidity_pct":45}'
+
+# 3. Create the checkup with your token
+curl -X POST http://localhost:8000/api/checkups \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+          <p>
+            Back in the browser, the <strong>Checkup</strong> page will pick up the
+            reading with <em>Scan with Device</em> and navigate you to the report.
+          </p>
+
+          <div class="callout warning">
+            <p class="callout-title">No reading yet?</p>
+            <p>
+              If the device has never reported, <code>POST /api/checkups</code> returns
+              <strong>409</strong>. Press the device button first, or post a reading as
+              above.
+            </p>
+          </div>
+
+          <h2 id="next">What next?</h2>
+          <ul>
+            <li><a href="hardware.html">Build the physical device</a> — full BOM and wiring.</li>
+            <li><a href="calibration.html">Calibrate the sensor model</a> — replace simulated data with real samples.</li>
+            <li><a href="api-reference.html">Browse the API reference</a> — every endpoint.</li>
+          </ul>
+        </article>
+
+        <nav class="prevnext">
+          <a href="index.html"><span class="dir">Previous</span>Home</a>
+          <a href="architecture.html"><span class="dir">Next</span>Architecture</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

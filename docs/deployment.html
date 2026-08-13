@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe deployment: Docker Compose stack, Nginx proxy, TLS termination, secrets management, PostgreSQL, and the production checklist."
+    />
+    <title>Deployment — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Deployment</span>
+        </div>
+        <article>
+          <h1>Deployment</h1>
+          <p class="lede">
+            The stack is designed to be run with Docker Compose today and graduated to a
+            managed setup tomorrow — same images, env-driven configuration throughout.
+          </p>
+
+          <h2 id="compose">Docker Compose</h2>
+          <pre><code>cp .env.example .env      # set FERNET_KEY, DEVICE_API_KEY
+docker compose -f infra/docker-compose.yml up --build</code></pre>
+          <p>What happens at startup:</p>
+          <ol>
+            <li><strong>postgres</strong> starts and becomes healthy (<code>pg_isready</code>).</li>
+            <li><strong>backend</strong> waits for postgres, runs <code>alembic upgrade head</code>, then serves uvicorn on 8000 (healthchecked via <code>curl /health</code>).</li>
+            <li><strong>frontend</strong> waits for the backend and serves the SPA via Nginx on port 80, proxying <code>/api/*</code> to the backend (healthchecked via <code>wget /health</code>).</li>
+          </ol>
+          <p>
+            The backend container runs as an <strong>unprivileged user</strong> (defense
+            in depth), and images are built from slim base images.
+          </p>
+
+          <h2 id="proxy">The Nginx proxy</h2>
+          <ul>
+            <li>Serves the static SPA (built by the multi-stage frontend image).</li>
+            <li>Proxies <code>/api/*</code> → <code>backend:8000</code>, so the browser talks to one origin (no CORS in production).</li>
+            <li>The frontend's production build points <code>VITE_API_BASE_URL</code> at <code>/api</code>.</li>
+          </ul>
+
+          <h2 id="tls">TLS</h2>
+          <p>
+            Terminate HTTPS at a reverse proxy (Caddy, Nginx, Traefik, or a load
+            balancer) in front of the stack:
+          </p>
+          <ul>
+            <li>Forward <code>X-Forwarded-For</code> / <code>X-Forwarded-Proto</code> (the app honours them).</li>
+            <li>Restrict <code>CORS_ORIGINS</code> to the real origin(s).</li>
+            <li>Set <code>USE_HTTPS true</code> in the firmware and point it at the TLS endpoint (NTP sync + trust bundle required).</li>
+          </ul>
+
+          <h2 id="secrets">Secrets</h2>
+          <ul>
+            <li>Inject <code>FERNET_KEY</code> and <code>DEVICE_API_KEY</code> via the orchestrator's secret store (Kubernetes Secrets, Docker secrets, Vault) — never bake them into images.</li>
+            <li>Never commit <code>.env</code> or the firmware's <code>secrets.h</code>.</li>
+            <li>Generate <code>FERNET_KEY</code> with <code>python -c "import secrets; print(secrets.token_urlsafe(48))"</code>.</li>
+          </ul>
+
+          <h2 id="database">Database</h2>
+          <ul>
+            <li>PostgreSQL 16 in production (asyncpg driver); SQLite for local dev.</li>
+            <li>Enable volume backups and consider a managed instance for HA.</li>
+            <li>Migrations run automatically at container start; for blue/green deploys, run <code>alembic upgrade head</code> as a separate step first.</li>
+          </ul>
+
+          <h2 id="observability">Observability</h2>
+          <ul>
+            <li>The backend emits structured JSON logs (request id, method, path, status, duration) to stdout.</li>
+            <li><code>/health</code> supports orchestrator probes.</li>
+            <li>Aggregate logs with your collector; alert on 5xx spikes and login rate-limit hits.</li>
+          </ul>
+
+          <h2 id="scale">Scaling &amp; hardening notes</h2>
+          <ul>
+            <li>
+              <strong>Multi-instance backend</strong> — the login rate limiter is
+              per-process; move it to Redis before scaling horizontally.
+            </li>
+            <li>
+              <strong>Device fleet</strong> — today devices share one
+              <code>DEVICE_API_KEY</code>; per-device keys with rotation and a device
+              registry are the documented next step (the dependency seam in
+              <code>app/core/security.py</code> is where they plug in).
+            </li>
+            <li>
+              <strong>Key rotation</strong> — rotating <code>FERNET_KEY</code> requires
+              re-encrypting stored reports; plan a migration job or use a KMS.
+            </li>
+          </ul>
+
+          <h2 id="checklist">Production checklist</h2>
+          <ol>
+            <li>Real <code>FERNET_KEY</code> in the secret store.</li>
+            <li><code>DEVICE_API_KEY</code> set and mirrored in firmware <code>secrets.h</code>.</li>
+            <li><code>CORS_ORIGINS</code> restricted to the real origin.</li>
+            <li>TLS terminated; firmware <code>USE_HTTPS true</code>.</li>
+            <li>PostgreSQL with backups; migrations as a deploy step.</li>
+            <li>Health checks wired into the orchestrator.</li>
+          </ol>
+        </article>
+
+        <nav class="prevnext">
+          <a href="export.html"><span class="dir">Previous</span>Clinician PDF export</a>
+          <a href="contributing.html"><span class="dir">Next</span>Contributing</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe data model: users, sessions, checkups, device readings, calibration samples, baselines, and Alembic migrations."
+    />
+    <title>Data model — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Data model</span>
+        </div>
+        <article>
+          <h1>Data model</h1>
+          <p class="lede">
+            Six tables under SQLAlchemy 2.0 (async), versioned by Alembic. The crown
+            jewel — the full biomarker report — is stored encrypted; only a plain
+            summary, risk label, and quality grade are readable for list views.
+          </p>
+
+          <h2 id="tables">Tables</h2>
+          <pre><code>users                sessions                checkups
+├─ id (uuid, PK)     ├─ id (uuid, PK)        ├─ id (uuid, PK)
+├─ email (uniq)      ├─ user_id → users      ├─ user_id → users
+├─ password_hash     ├─ token_hash (uniq)    ├─ summary (plain)
+├─ age               ├─ created_at           ├─ overall_risk (plain)
+├─ sex               ├─ expires_at           ├─ quality_grade (plain)
+├─ height_cm         ├─ revoked_at           ├─ encrypted_data (Fernet)
+├─ weight_kg                                ├─ created_at
+├─ activity_level                            └─ is_shared
+├─ share_data
+├─ token_balance      device_readings        device_baselines
+├─ device_id         ├─ id (uuid, PK)        ├─ device_id (PK)
+└─ created_at        ├─ device_id            ├─ rgb_r / rgb_g / rgb_b
+                     ├─ rgb_r/g/b            └─ (blank-pad calibration)
+                     ├─ temperature_c
+                     ├─ humidity_pct         calibration_samples
+                     └─ created_at           ├─ id (uuid, PK)
+                                             ├─ device_id
+   share_events                              ├─ analyte
+   ├─ id (uuid, PK)                          ├─ concentration
+   ├─ checkup_id → checkups (uniq)           ├─ rgb_r/g/b
+   └─ tokens_awarded                         ├─ temperature_c
+                                             ├─ humidity_pct
+                                             └─ created_at</code></pre>
+
+          <h2 id="relationships">Relationships &amp; cascade rules</h2>
+          <table>
+            <thead>
+              <tr><th>Parent</th><th>Child</th><th>On delete</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>users</code></td><td><code>sessions</code>, <code>checkups</code></td><td>cascade — deleting an account removes everything</td></tr>
+              <tr><td><code>checkups</code></td><td><code>share_events</code></td><td>cascade; the unique <code>checkup_id</code> makes sharing idempotent</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="encryption">Encryption at rest</h2>
+          <p>
+            <code>checkups.encrypted_data</code> holds the full report JSON encrypted
+            with Fernet (AES-128-CBC + HMAC). The key is derived with SHA-256 from
+            <code>FERNET_KEY</code> — so a single secret protects every report, and the
+            columns that stay plain (summary, risk, grade) are deliberately the ones
+            that leak nothing medically sensitive.
+          </p>
+          <div class="callout warning">
+            <p class="callout-title">Rotate responsibly</p>
+            <p>
+              Changing <code>FERNET_KEY</code> without re-encrypting stored reports makes
+              them undecryptable. For production, plan a key-rotation job or use a KMS.
+            </p>
+          </div>
+
+          <h2 id="identity">Identity columns</h2>
+          <ul>
+            <li>All primary keys are UUIDv4 generated in the application.</li>
+            <li><code>users.email</code> is unique + indexed (case-normalized).</li>
+            <li><code>sessions.token_hash</code> is unique + indexed; <code>sessions.user_id</code> is indexed.</li>
+            <li><code>checkups.user_id</code>, <code>device_readings.device_id</code>, and <code>calibration_samples.analyte</code> are indexed for the hot query paths.</li>
+          </ul>
+
+          <h2 id="migrations">Migrations</h2>
+          <p>
+            Alembic migrations live in <code>backend/alembic/versions/</code> and run
+            automatically at container start (see
+            <a href="deployment.html">deployment</a>):
+          </p>
+          <table>
+            <thead>
+              <tr><th>Revision</th><th>Adds</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>0001_initial</code></td><td>users, checkups, device readings, share events</td></tr>
+              <tr><td><code>0002_calibration_samples</code></td><td>labeled training samples</td></tr>
+              <tr><td><code>0003_device_baselines</code></td><td>blank-pad gain-correction baselines</td></tr>
+              <tr><td><code>0004_auth_sessions</code></td><td>email/password_hash on users, sessions table, checkups.quality_grade</td></tr>
+            </tbody>
+          </table>
+          <pre><code>cd backend
+alembic upgrade head
+alembic downgrade base   # and back up, to sanity-check a change
+alembic revision --autogenerate -m "describe the change"</code></pre>
+          <div class="callout tip">
+            <p class="callout-title">SQLite quirk</p>
+            <p>
+              SQLite stores naive datetimes; the code treats them as UTC on read
+              (<code>_as_aware</code> helpers). PostgreSQL keeps full timezone
+              information.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="auth.html"><span class="dir">Previous</span>Authentication</a>
+          <a href="security.html"><span class="dir">Next</span>Security</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe FAQ — is it a medical device, how accurate is it, what happens to my data, do I need hardware?"
+    />
+    <title>FAQ — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>FAQ</span>
+        </div>
+        <article>
+          <h1>Frequently asked questions</h1>
+          <p class="lede">
+            Straight answers about what this project is, what it isn't, and how to use
+            it responsibly.
+          </p>
+
+          <h2 id="medical">Is this a medical device?</h2>
+          <p><strong>No.</strong></p>
+          <p>
+            Doctordrobe is an educational home-health analyzer. It is not FDA/CE/MDR
+            cleared, it has not been clinically validated, and the sensor model ships
+            trained on <strong>simulated chemistry</strong> until you collect real
+            calibration samples. The reports are explicitly labeled
+            <em>not a medical device</em> in the UI, the PDF export, and the code.
+            Treat any value as a curiosity, never a diagnosis. Confirm clinically
+            significant findings with a laboratory test and a clinician.
+          </p>
+
+          <h2 id="accurate">How accurate is it?</h2>
+          <p>
+            Out of the box: the SaliNet model is a Random Forest trained on simulated
+            Beer–Lambert strip chemistry, with held-out R² around 0.56–0.92 depending on
+            analyte. That measures the model against its own simulator, not against
+            reality. The honest path to accuracy is the
+            <a href="calibration.html">calibration workflow</a>: collect labeled samples
+            from control standards and retrain on real measurements.
+          </p>
+          <p>
+            Accuracy also depends on capture quality. The system grades each reading
+            (<a href="measurement-quality.html">good / fair / poor</a>) from burst
+            variance, light levels, and spectral residuals — a poor capture is flagged
+            with a retake recommendation rather than reported with false confidence.
+          </p>
+
+          <h2 id="data">What happens to my data?</h2>
+          <ul>
+            <li>Reports are encrypted with Fernet before storage; list views only see a summary and risk label.</li>
+            <li>Passwords are salted + hashed with PBKDF2; session tokens are stored as SHA-256 digests.</li>
+            <li>Sharing a checkup is always opt-in and awards tokens — nothing is shared by default.</li>
+            <li>You can export everything (Vault) or delete your account (which cascades to all checkups).</li>
+          </ul>
+
+          <h2 id="hardware-needed">Do I need to build the hardware?</h2>
+          <p>
+            To take real readings, yes — the backend refuses to fabricate data, and
+            there is no simulated mode. But you can run the full stack and explore the
+            API with a manually posted reading (see
+            <a href="getting-started.html#first-checkup">getting started</a>). The
+            hardware is ~$35–45 in parts and the build takes an evening
+            (<a href="hardware.html">build guide</a>).
+          </p>
+
+          <h2 id="why-five">Why these five biomarkers?</h2>
+          <p>
+            Saliva is a practical medium for home testing, and these five are all
+            measurable colorimetrically with strip chemistry: glucose (glucose-oxidase),
+            CRP (immunochromogenic), cortisol (ELISA-type), pH (mixed indicator), and
+            secretory IgA (turbidimetric). They also happen to be a coherent health
+            panel: metabolic (glucose, CRP), stress (cortisol), and mucosal immunity
+            (sIgA). See <a href="science.html">analysis science</a> for the chemistry.
+          </p>
+
+          <h2 id="why-rgb">Three RGB channels for five analytes?</h2>
+          <p>
+            Good question — it's an ill-posed inverse problem. The answer is in
+            <a href="science.html#ill-posed">the science page</a>: the system captures a
+            burst of snapshots, deconvolves them together as one over-determined system,
+            regularizes toward a prior (SaliNet or Beer–Lambert), and reports a per-marker
+            identifiability confidence so you know when a number was <em>not</em>
+            resolvable.
+          </p>
+
+          <h2 id="esp32-5ghz">Why won't my ESP32 connect to Wi-Fi?</h2>
+          <p>
+            The ESP32 only supports <strong>2.4 GHz</strong> networks. If your router
+            broadcasts only 5 GHz, the device will never associate. See the
+            <a href="hardware.html#troubleshooting">hardware troubleshooting</a> table.
+          </p>
+
+          <h2 id="reset">How do I recover a lost password?</h2>
+          <p>
+            Password recovery isn't implemented yet — by design, because this is a
+            self-hosted project. If you lose access, delete the account row (or database)
+            and register again. This is a known gap for production use; see
+            <a href="auth.html#roadmap">auth roadmap</a>.
+          </p>
+
+          <h2 id="tokens">What are the tokens for?</h2>
+          <p>
+            A gamified incentive for the community data pool: sharing a checkup
+            (opt-in) awards 5 tokens. They have no monetary value; the point is to make
+            anonymized cohort data meaningful as the fleet grows.
+          </p>
+
+          <h2 id="contribute">How can I help?</h2>
+          <p>
+            See <a href="contributing.html">contributing</a>. High-value contributions:
+            real calibration datasets, better biology in the forward model, per-device
+            API keys, password recovery, and clinical validation partnerships.
+          </p>
+        </article>
+
+        <nav class="prevnext">
+          <a href="architecture.html"><span class="dir">Previous</span>Architecture</a>
+          <a href="glossary.html"><span class="dir">Next</span>Glossary</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

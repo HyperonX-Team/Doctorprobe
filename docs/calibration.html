@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe calibration tutorial: make control standards, collect labeled samples with CAL mode, export, retrain SaliNet, and verify."
+    />
+    <title>Calibration tutorial — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Calibration tutorial</span>
+        </div>
+        <article>
+          <h1>Calibration tutorial — make SaliNet real</h1>
+          <p class="lede">
+            SaliNet ships trained on <strong>simulated strip chemistry</strong>. This
+            tutorial replaces that with <strong>real measurements</strong>: build control
+            standards, collect labeled samples with the firmware's calibration mode,
+            export, retrain, and verify.
+          </p>
+
+          <div class="callout warning">
+            <p class="callout-title">What "real" means here</p>
+            <p>
+              The goal is a per-analyte model trained on samples from <em>your</em>
+              device and <em>your</em> strips, labeled by standards you made. That is the
+              honest path to accuracy — and the only thing that makes the reported
+              numbers defensible.
+            </p>
+          </div>
+
+          <h2 id="overview">The workflow</h2>
+          <ol>
+            <li>Build control standards with known concentrations.</li>
+            <li>Arm the firmware (<code>CAL &lt;analyte&gt; &lt;concentration&gt;</code>), put a strip under the sensor, press the button — the device averages 10 reads and POSTs one labeled sample.</li>
+            <li>Repeat across levels until every analyte has ≥ 15 samples.</li>
+            <li>Export the training CSV and run the trainer.</li>
+            <li>Verify against a known control; clear the samples.</li>
+          </ol>
+
+          <h2 id="standards">1. Control standards</h2>
+          <p>
+            A control standard is a solution with a <em>known</em> analyte concentration.
+            The analyzer's acceptance envelopes (from <code>app/schemas/calibration.py</code>):
+          </p>
+          <table>
+            <thead>
+              <tr><th>Analyte</th><th>Envelope</th><th>Standard recipe</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Glucose</td><td>0.05–50 mg/dL</td><td>Pure dextrose powder dissolved in distilled water (0.5 g in 1 L = 50 mg/dL; weigh on a 0.01 g scale). Use high-sensitivity glucose strips.</td></tr>
+              <tr><td>CRP</td><td>0.005–20 ng/mL</td><td>Commercial immunoassay control kits or lab-prepared standards — home chemistry is unreliable here; plan a lab session.</td></tr>
+              <tr><td>Cortisol</td><td>0.005–5 µg/dL</td><td>Commercial ELISA-type control kits or lab-prepared standards.</td></tr>
+              <tr><td>sIgA</td><td>0.5–200 mg/dL</td><td>Commercial IgA standards or lab-prepared dilutions.</td></tr>
+              <tr><td>pH</td><td>—</td><td><strong>Never calibrated.</strong> pH is a mixed-indicator ratio (closed-form channel ratio).</td></tr>
+            </tbody>
+          </table>
+          <p>
+            <strong>Strategy:</strong> cover at least 5 concentration levels per analyte,
+            spanning the physiological reference range, with ≥ 15 samples per level.
+            More spread beats more replicates of the same value.
+          </p>
+
+          <h2 id="capture">2. Capture samples</h2>
+          <p>From the serial monitor at 115200 baud:</p>
+          <pre><code>CAL glucose 2.5      # arm: label the NEXT capture
+# ...place the control strip under the sensor and press the button...
+# the device averages 10 readings and posts one labeled sample
+
+CAL glucose 5.0      # next level
+CALCLEAR             # disarm without capturing</code></pre>
+          <p>
+            Watch the app's <a href="frontend.html#pages">Calibration</a> page (or
+            <code>GET /api/calibration/stats</code>) to see counts climb per analyte.
+          </p>
+
+          <h2 id="export">3. Export and retrain</h2>
+          <pre><code># From the app: Calibration → Export training CSV (or:)
+curl -o backend/data/real_training.csv http://localhost:8000/api/calibration/export
+
+cd backend
+python scripts/generate_synthetic_data.py   # fallback for uncalibrated analytes
+python scripts/train_model.py</code></pre>
+          <p>The trainer's data priority:</p>
+          <ol>
+            <li>
+              <strong>Real data</strong> — an analyte uses its real samples when it has
+              ≥ 15 (the <code>MIN_REAL_SAMPLES</code> threshold, shown in the dashboard).
+            </li>
+            <li>
+              <strong>Synthetic fallback</strong> — analytes below the threshold keep the
+              simulated dataset so the model stays complete.
+            </li>
+          </ol>
+          <p>
+            Output: <code>app/services/model/salinet.joblib</code> (one forest per
+            analyte) and <code>salinet.json</code>, the manifest recording
+            <code>trained_at</code>, per-analyte <code>provenance</code>
+            (<code>real</code> vs <code>synthetic</code>, sample counts) and held-out
+            <code>metrics</code> (R², MAE).
+          </p>
+
+          <h2 id="verify">4. Verify</h2>
+          <ul>
+            <li>Run a checkup on a known control standard; the reported value should match the label within the model's MAE.</li>
+            <li>Confirm the manifest now says <code>"source": "real"</code> for the calibrated analytes (Calibration page shows this per analyte).</li>
+            <li>Spot-check the extremes: a blank strip should read near the bottom of the range; a strong standard near the top.</li>
+          </ul>
+
+          <h2 id="clear">5. Clear</h2>
+          <pre><code>curl -X DELETE http://localhost:8000/api/calibration/samples
+# or: Calibration → Clear samples</code></pre>
+
+          <h2 id="dashboard">The calibration dashboard</h2>
+          <p>
+            The app's Calibration page answers the two questions that matter:
+          </p>
+          <ul>
+            <li>
+              <strong>Coverage</strong> — per-analyte sample count vs the 15-sample
+              threshold, concentration span, and a "Ready to train / Keep collecting"
+              badge.
+            </li>
+            <li>
+              <strong>Model status</strong> — version, training timestamp, and per-analyte
+              data source (real vs synthetic) straight from the manifest.
+            </li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Why one forest per analyte?</p>
+            <p>
+              Control samples are labeled per analyte, so per-analyte forests fit the
+              data collection naturally — and each forest's feature importances show
+              exactly which sensor channel drives that analyte. See
+              <a href="science.html#salinet">analysis science</a>.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="firmware.html"><span class="dir">Previous</span>Firmware guide</a>
+          <a href="science.html"><span class="dir">Next</span>Analysis science</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

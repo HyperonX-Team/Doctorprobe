@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe backend overview: FastAPI app structure, service layer, and every configuration variable."
+    />
+    <title>Backend overview — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Backend overview</span>
+        </div>
+        <article>
+          <h1>Backend overview</h1>
+          <p class="lede">
+            A FastAPI application with an async SQLAlchemy ORM, Alembic migrations, and a
+            deterministic analysis pipeline. Everything is env-configured and runs in one
+            container.
+          </p>
+
+          <h2 id="stack">Stack</h2>
+          <ul>
+            <li>Python 3.11 · FastAPI 0.111 · Pydantic v2 + <code>pydantic-settings</code></li>
+            <li>SQLAlchemy 2.0 async — asyncpg (PostgreSQL) / aiosqlite (dev)</li>
+            <li>Alembic migrations · Fernet report encryption · structured JSON logs</li>
+            <li>scikit-learn + joblib for the SaliNet model artifact</li>
+          </ul>
+
+          <h2 id="layout">Repository layout</h2>
+          <pre><code>backend/
+  app/
+    main.py            app factory, CORS, exception envelope, /health
+    api/routes/        auth, checkups, devices, shares, trends, calibration
+    core/              config (env-driven), security, logging
+    db/                base, async session
+    models/            SQLAlchemy ORM models
+    schemas/           Pydantic v2 request/response models
+    services/          analyzer, spectral, report, trends, export, calibration_stats
+    utils/             crypto, passwords, map_range
+  alembic/             migrations
+  scripts/             generate_synthetic_data.py, train_model.py
+  tests/               pytest + pytest-asyncio (in-memory SQLite)</code></pre>
+
+          <h2 id="services">The service layer</h2>
+          <table>
+            <thead>
+              <tr><th>Service</th><th>Responsibility</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>analyzer.py</code></td><td>Deterministic pipeline: profile adjustments → spectral solve → risk → quality grade.</td></tr>
+              <tr><td><code>spectral.py</code></td><td>The physics-constrained NNLS solver with Tikhonov prior and per-analyte standard errors.</td></tr>
+              <tr><td><code>report.py</code></td><td>Orchestrates a checkup: latest burst + baseline → analyze → encrypt → persist.</td></tr>
+              <tr><td><code>trends.py</code></td><td>Decrypts a user's checkups into per-marker series, stats, and deterministic alerts.</td></tr>
+              <tr><td><code>export.py</code></td><td>Builds the clinician-facing PDF with quality and trends appendix.</td></tr>
+              <tr><td><code>calibration_stats.py</code></td><td>Per-analyte sample coverage vs the retrain threshold + model manifest status.</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="config">Configuration</h2>
+          <p>
+            Every setting is an environment variable (see <code>backend/.env.example</code>)
+            parsed once per process via <code>app/core/config.py</code>.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>DATABASE_URL</code></td><td><code>sqlite:///./doctordrobe.db</code></td><td>Async DB URL (PostgreSQL in prod)</td></tr>
+              <tr><td><code>ENV</code></td><td><code>development</code></td><td>JSON vs plain logging</td></tr>
+              <tr><td><code>DEBUG</code></td><td><code>false</code></td><td>SQL echo</td></tr>
+              <tr><td><code>CORS_ORIGINS</code></td><td>localhost:5173/3000</td><td>Allowed browser origins</td></tr>
+              <tr><td><code>FERNET_KEY</code></td><td><code>dev-key-change-me</code></td><td>Derives the report-encryption key</td></tr>
+              <tr><td><code>DEVICE_API_KEY</code></td><td>unset</td><td>Enables <code>X-API-Key</code> on device endpoints</td></tr>
+              <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code></td><td>Root log level</td></tr>
+              <tr><td><code>TOKEN_REWARD</code></td><td><code>5</code></td><td>Tokens per shared checkup</td></tr>
+              <tr><td><code>SESSION_TTL_DAYS</code></td><td><code>30</code></td><td>Browser session lifetime</td></tr>
+              <tr><td><code>PASSWORD_MIN_LENGTH</code></td><td><code>8</code></td><td>Minimum password length</td></tr>
+              <tr><td><code>AUTH_LOGIN_MAX_ATTEMPTS</code></td><td><code>10</code></td><td>Per-IP login attempt budget</td></tr>
+              <tr><td><code>AUTH_LOGIN_WINDOW_SECONDS</code></td><td><code>900</code></td><td>Login rate-limit window</td></tr>
+              <tr><td><code>DEVICE_STALE_SECONDS</code></td><td><code>300</code></td><td>Device "connected" window</td></tr>
+              <tr><td><code>READING_BURST_GAP_SECONDS</code></td><td><code>45.0</code></td><td>Snapshots closer than this form one burst</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="testing">Testing</h2>
+          <p>
+            72 pytest tests run against an in-memory async SQLite database — no external
+            services required:
+          </p>
+          <pre><code>cd backend
+python -m pytest -q     # 72 passed</code></pre>
+          <p>
+            Coverage includes the full auth lifecycle, ownership guards (401/403),
+            trends alert detection, quality grading, PDF export, and calibration stats.
+            CI also runs <code>alembic upgrade head</code> as a migration smoke test.
+          </p>
+
+          <div class="callout tip">
+            <p class="callout-title">Next</p>
+            <p>
+              Browse every endpoint in the <a href="api-reference.html">API reference</a>
+              or dive into <a href="auth.html">authentication</a>.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="architecture.html"><span class="dir">Previous</span>Architecture</a>
+          <a href="api-reference.html"><span class="dir">Next</span>API reference</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

@@ -359,7 +359,7 @@ builds on every push/PR to `main`.
 ## Docs
 
 - [`BUILD.md`](BUILD.md) — step-by-step build tutorial for every component
-- [`docs/build-tutorial.html`](docs/build-tutorial.html) — the tutorial as a styled page
+- [`docs/index.html`](docs/index.html) — the full documentation website (20+ pages: tutorials, API reference, science, deployment)
 - [`arduino/doctordrobe/BUILD_GUIDE.md`](arduino/doctordrobe/BUILD_GUIDE.md) — parts list, wiring, assembly
 - [`backend/README.md`](backend/README.md) — backend configuration
 - [`frontend/README.md`](frontend/README.md) — frontend scripts and structure

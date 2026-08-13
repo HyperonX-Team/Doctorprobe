@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe architecture: ESP32 device, FastAPI backend, React SPA, database, and how a checkup flows through the stack."
+    />
+    <title>Architecture — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Architecture</span>
+        </div>
+        <article>
+          <h1>Architecture</h1>
+          <p class="lede">
+            Three independent layers — device, API, and browser — joined by HTTP, with
+            every biomarker report encrypted at rest.
+          </p>
+
+          <h2 id="diagram">System diagram</h2>
+          <pre><code>┌────────────────────────┐          HTTPS          ┌───────────────────────────┐
+│ ESP32 (Arduino)        │  ─────────────────────► │ FastAPI backend           │
+│  TCS34725 RGB sensor   │   POST /api/devices/    │  /api/auth                │
+│  DHT22 temp/humidity   │   reading               │  /api/checkups            │
+│  Button + status LED   │                         │  /api/devices             │
+│  ArduinoJson over HTTP │                         │  /api/trends              │
+└────────────────────────┘                         │  /api/calibration         │
+                                                   └─────────────┬─────────────┘
+                                                                 │ SQLAlchemy 2.0
+                                                                 │ (async ORM)
+                                                                 ▼
+                                                ┌──────────────────────────────┐
+                                                │ PostgreSQL 16 (prod)         │
+                                                │ SQLite (dev)                 │
+                                                │ Alembic migrations           │
+                                                └──────────────────────────────┘
+
+┌──────────────────────────┐   HTTPS   ┌───────────────────────────────┐
+│ Browser / React 18 SPA   │ ────────► │ Nginx (port 80)               │
+│ (Vite, Tailwind 3.4)     │  /api/*   │  serves the static SPA        │
+│                          │  proxy    │  proxies /api → backend:8000  │
+└──────────────────────────┘           └───────────────┬───────────────┘
+                                                       │ container network
+                                                       ▼
+                                        ┌───────────────────────────────┐
+                                        │ FastAPI backend (port 8000)   │
+                                        │ uvicorn                       │
+                                        └───────────────────────────────┘</code></pre>
+
+          <h2 id="layers">The layers</h2>
+          <h3>1. Device (ESP32 firmware)</h3>
+          <p>
+            The physical layer. A TCS34725 RGB colour sensor reads a saliva strip; a
+            DHT22 records ambient temperature and humidity. On button press, the
+            firmware normalizes each RGB channel against the sensor's clear channel
+            (making readings lighting-independent) and POSTs a snapshot to
+            <code>/api/devices/reading</code>, optionally protected by an
+            <code>X-API-Key</code> header.
+          </p>
+          <h3>2. Backend (FastAPI)</h3>
+          <p>
+            The intelligence layer. It authenticates browser sessions, ingests device
+            readings, runs the biomarker analysis, encrypts reports, and serves trends.
+            The analysis pipeline (<code>app/services/</code>) is deterministic: the
+            same snapshot and profile always produce the same report.
+          </p>
+          <h3>3. Database (SQLAlchemy + Alembic)</h3>
+          <p>
+            PostgreSQL in production, SQLite for development. Migrations are managed
+            with Alembic and run automatically at container start. Report payloads are
+            stored <strong>encrypted</strong> with Fernet; only a plain summary and risk
+            label stay readable for list views.
+          </p>
+          <h3>4. Frontend (React SPA)</h3>
+          <p>
+            The presentation layer. A chat-style UI for reports, a trends page with
+            SVG charts, a vault for exports, and a calibration dashboard. All requests
+            carry the session bearer token; ownership is enforced server-side.
+          </p>
+
+          <h2 id="checkup-flow">Anatomy of a checkup</h2>
+          <ol>
+            <li>
+              <strong>Capture.</strong> The user presses the device button; the firmware
+              posts one or more snapshots (a <em>burst</em>) of the same strip.
+            </li>
+            <li>
+              <strong>Ingest.</strong> <code>POST /api/devices/reading</code> (or
+              <code>/readings</code> for bursts) stores raw snapshots.
+            </li>
+            <li>
+              <strong>Analyse.</strong> <code>POST /api/checkups</code> loads the
+              newest burst for the user's device, applies the blank-pad baseline
+              correction if one exists, and runs the spectral solver with the SaliNet
+              prior.
+            </li>
+            <li>
+              <strong>Encrypt.</strong> The full report is serialized, encrypted with
+              Fernet, and stored with a plain summary, risk label, and quality grade.
+            </li>
+            <li>
+              <strong>Present.</strong> <code>GET /api/checkups/{id}</code> decrypts and
+              returns the report; the SPA renders it, grades the measurement, and offers
+              sharing, saving, and PDF export.
+            </li>
+          </ol>
+
+          <h2 id="trust-domains">Two trust domains</h2>
+          <p>
+            The API deliberately separates device identity from user identity:
+          </p>
+          <ul>
+            <li>
+              <strong>Devices</strong> authenticate with a shared <code>X-API-Key</code>
+              header on ingest endpoints (enforced when <code>DEVICE_API_KEY</code> is
+              set). Constant-time comparison prevents timing attacks.
+            </li>
+            <li>
+              <strong>Browsers</strong> authenticate with opaque bearer tokens issued by
+              <code>/api/auth</code>. The owning user is always derived from the token —
+              endpoints never accept a client-supplied user id.
+            </li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Read more</p>
+            <p>
+              Deep dives: <a href="science.html">analysis science</a>,
+              <a href="auth.html">authentication</a>, and
+              <a href="data-model.html">data model</a>.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="getting-started.html"><span class="dir">Previous</span>Getting started</a>
+          <a href="backend.html"><span class="dir">Next</span>Backend overview</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

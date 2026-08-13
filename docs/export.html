@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe clinician PDF export: a print-ready report with patient context, biomarker table, measurement quality, and trends appendix."
+    />
+    <title>Clinician PDF export — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Clinician PDF export</span>
+        </div>
+        <article>
+          <h1>Clinician PDF export</h1>
+          <p class="lede">
+            A print-ready A4 document of any checkup — the thing a user can hand to a
+            clinician. It carries the results, the measurement-quality verdict, and a
+            30-day trends appendix, with the same "not a medical device" disclaimer as
+            the app.
+          </p>
+
+          <h2 id="getting">Getting the PDF</h2>
+          <ul>
+            <li>
+              <strong>In the app</strong> — open any report and click
+              <em>Download clinician PDF</em>.
+            </li>
+            <li>
+              <strong>Via API</strong> —
+              <code>GET /api/checkups/{id}/export</code> with the bearer token; returns
+              <code>application/pdf</code> with a
+              <code>Content-Disposition: attachment</code> header.
+            </li>
+          </ul>
+          <pre><code>curl -OJ http://localhost:8000/api/checkups/$CHECKUP_ID/export \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+          <p>
+            Ownership is enforced exactly like the JSON endpoints — another user's
+            checkup returns <strong>403</strong>, no token returns <strong>401</strong>.
+          </p>
+
+          <h2 id="contents">What the document contains</h2>
+          <table>
+            <thead>
+              <tr><th>Section</th><th>Contents</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Header</td><td>Doctordrobe Biomarker Report · home health analysis · the disclaimer</td></tr>
+              <tr><td>Patient</td><td>Age/sex, height/weight, BMI, activity level, device id</td></tr>
+              <tr><td>Result</td><td>Analysis date, overall risk, the plain-language summary, and the measurement-quality verdict with reasons</td></tr>
+              <tr><td>Biomarkers</td><td>Table: name, value + unit, reference range, state, identifiability confidence</td></tr>
+              <tr><td>Analysis method</td><td>Solver, prior source (SaliNet vs Beer-Lambert), snapshot count, reconstruction residual, condition number</td></tr>
+              <tr><td>Trends appendix</td><td>Per-marker series summary over the last 30 days (count, latest, mean, min/max) plus any fired alerts</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="reading">How a clinician should read it</h2>
+          <ul>
+            <li>
+              <strong>Measurement quality first.</strong> A <em>poor</em> capture is
+              flagged with reasons and a retake recommendation — treat its numbers as
+              unusable.
+            </li>
+            <li>
+              <strong>Confidence column.</strong> Values with low identifiability were
+              not resolvable from the measurement; they carry a caveat in the JSON report
+              and a low percentage in the PDF.
+            </li>
+            <li>
+              <strong>Trends appendix.</strong> Context: a single high value surrounded
+              by a stable baseline reads differently than three consecutive rises. The
+              appendix includes the alerts the system derived.
+            </li>
+            <li>
+              <strong>Analysis method.</strong> Transparency about how the numbers were
+              produced — including that the prior may be <code>synthetic</code> until the
+              user calibrates.
+            </li>
+          </ul>
+
+          <h2 id="implementation">Implementation notes</h2>
+          <ul>
+            <li>
+              Built with <code>fpdf2</code> (pure Python, no system PDF dependencies —
+              fits the slim backend image).
+            </li>
+            <li>
+              Uses built-in core fonts; non-Latin-1 characters (µ, –, →) are normalized
+              to ASCII so the document renders identically everywhere.
+            </li>
+            <li>
+              The trends appendix reuses the same <code>build_trends</code> service as
+              the <a href="trends.html">Trends page</a>, so the PDF and the UI never
+              disagree.
+            </li>
+          </ul>
+
+          <div class="callout warning">
+            <p class="callout-title">Not for diagnosis</p>
+            <p>
+              The document is designed to be <em>informative and honest</em>, not
+              clinically validated. It states its own limitations — including that the
+              model may be trained on simulated data — so a clinician can weigh it
+              accordingly.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="trends.html"><span class="dir">Previous</span>Trends &amp; alerts</a>
+          <a href="deployment.html"><span class="dir">Next</span>Deployment</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

@@ -2,8 +2,8 @@
 
 Step-by-step guide to building and running every component of the
 Doctordrobe health analyzer: backend, frontend, Docker stack, and the
-ESP32 firmware. An HTML version of this tutorial is available in
-[`docs/build-tutorial.html`](docs/build-tutorial.html).
+ESP32 firmware. The full documentation website (20+ pages, tutorials,
+API reference) lives at [`docs/index.html`](docs/index.html).
 
 ---
 
@@ -243,4 +243,4 @@ Behaviour:
 - `backend/README.md` — backend layout and configuration
 - `frontend/README.md` — frontend scripts and structure
 - `arduino/doctordrobe/README.md` — hardware wiring and flashing
-- `docs/build-tutorial.html` — this tutorial as a styled page
+- [`docs/index.html`](docs/index.html) — the documentation website (tutorials, API reference, science)

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Glossary of Doctordrobe terms: Beer-Lambert, SaliNet, NNLS, Fernet, burst, biomarker, identifiability, and more."
+    />
+    <title>Glossary — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Glossary</span>
+        </div>
+        <article>
+          <h1>Glossary</h1>
+          <p class="lede">
+            The vocabulary of the project, from the chemistry to the infrastructure.
+            Terms are grouped by area.
+          </p>
+
+          <h2 id="science">Chemistry &amp; analysis</h2>
+          <dl class="kv">
+            <dt>Analyte</dt>
+            <dd>A substance measured by the test — here glucose, CRP, cortisol, pH, and secretory IgA.</dd>
+            <dt>Biomarker</dt>
+            <dd>An analyte reported with a value, unit, reference range, and state (low/normal/high).</dd>
+            <dt>Beer–Lambert law</dt>
+            <dd>Absorbance is proportional to concentration: A = -log10(R/R₀). The physics behind strip colorimetry.</dd>
+            <dt>Chromogen</dt>
+            <dd>The coloured reaction product a reagent pad develops; its intensity encodes concentration.</dd>
+            <dt>Reference range</dt>
+            <dd>The literature-plausible normal interval used to classify a value as low/normal/high.</dd>
+            <dt>Identifiability</dt>
+            <dd>How confidently an analyte's concentration could be separated from the other channels. Reported as a 0–1 <em>confidence</em>.</dd>
+            <dt>NNLS</dt>
+            <dd>Non-negative least squares — the solver finds concentrations ≥ 0 that best fit the measured absorbances.</dd>
+            <dt>Tikhonov prior</dt>
+            <dd>A regularization term that steadies ill-conditioned directions toward a sensible estimate (SaliNet's prediction).</dd>
+            <dt>Condition number</dt>
+            <dd>A measure of how ill-posed the reconstruction is; high values mean channels are weakly separated.</dd>
+            <dt>Reconstruction residual</dt>
+            <dd>How much of the measured signal the fitted model fails to explain; used in quality grading.</dd>
+          </dl>
+
+          <h2 id="system">System</h2>
+          <dl class="kv">
+            <dt>Checkup</dt>
+            <dd>One analysed reading: a snapshot of all five biomarkers, encrypted at rest.</dd>
+            <dt>Burst</dt>
+            <dd>A cluster of snapshots of the same strip captured within ~45 s; the solver deconvolves them together.</dd>
+            <dt>Blank baseline</dt>
+            <dd>An unstained-strip capture (CAL BLANK) that defines a device's "white" for gain correction.</dd>
+            <dt>Fernet</dt>
+            <dd>Symmetric encryption (AES-128-CBC + HMAC) used to encrypt report payloads at rest.</dd>
+            <dt>Bearer token</dt>
+            <dd>An opaque session credential issued at login/register; sent as <code>Authorization: Bearer …</code>.</dd>
+            <dt>Session digest</dt>
+            <dd>The SHA-256 hash of a token that is actually stored, so a DB leak exposes no usable tokens.</dd>
+            <dt>Quality grade</dt>
+            <dd>good / fair / poor verdict on a capture, from burst variance, light levels, and solver conditioning.</dd>
+            <dt>Prior source</dt>
+            <dd>Whether the solver's prior came from SaliNet (<code>salinet</code>) or the closed-form Beer–Lambert fallback (<code>beer-lambert</code>).</dd>
+          </dl>
+
+          <h2 id="ml">Machine learning</h2>
+          <dl class="kv">
+            <dt>SaliNet</dt>
+            <dd>The sensor model: four per-analyte Random Forests that invert RGB+temp+humidity into concentrations.</dd>
+            <dt>Forward model</dt>
+            <dd>The simulator (Beer–Lambert + pad cross-talk + noise) that generates synthetic training data.</dd>
+            <dt>Calibration sample</dt>
+            <dd>A labeled capture from a control standard with known concentration, used to retrain SaliNet on reality.</dd>
+            <dt>Manifest</dt>
+            <dd><code>salinet.json</code> — records model version, training time, per-analyte source, and R²/MAE.</dd>
+            <dt>Provenance</dt>
+            <dd>Per-analyte record of whether training data was <code>real</code> or <code>synthetic</code> and how many samples.</dd>
+          </dl>
+
+          <h2 id="hardware">Hardware</h2>
+          <dl class="kv">
+            <dt>TCS34725</dt>
+            <dd>The I2C RGB colour sensor that reads the strip; exposes clear (unfiltered) + RGB channels.</dd>
+            <dt>DHT22</dt>
+            <dd>Temperature/humidity sensor used for enzyme-kinetics compensation.</dd>
+            <dt>ESP32</dt>
+            <dd>The microcontroller brain with Wi-Fi; runs the Arduino firmware.</dd>
+            <dt>Normalized channel</dt>
+            <dd>An RGB channel divided by the sensor's clear channel, making readings lighting-independent.</dd>
+            <dt>CAL mode</dt>
+            <dd>A firmware state that labels the next capture with an analyte + concentration for training data.</dd>
+          </dl>
+        </article>
+
+        <nav class="prevnext">
+          <a href="faq.html"><span class="dir">Previous</span>FAQ</a>
+          <a href="backend.html"><span class="dir">Next</span>Backend overview</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>
