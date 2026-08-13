@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe documentation — build, calibrate, and understand a home saliva health analyzer: ESP32 hardware, FastAPI backend, React frontend, and the spectral science behind it."
+    />
+    <title>Doctordrobe Docs — Home health analysis, end to end</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main wide">
+        <section class="hero">
+          <h1>Doctordrobe</h1>
+          <p>
+            A home-health analyzer you can build, calibrate, and understand. An ESP32
+            reads saliva test strips with an RGB colour sensor; a FastAPI backend turns
+            the colorimetric chemistry into a five-analyte biomarker panel; a React SPA
+            shows you encrypted reports, trends, and alerts.
+          </p>
+          <p>
+            This documentation covers every layer — from the parts list to the
+            spectral reconstruction math — with step-by-step tutorials.
+          </p>
+        </section>
+
+        <h2>Start here</h2>
+        <div class="card-grid">
+          <a class="card" href="getting-started.html">
+            <h3>Getting started</h3>
+            <p>Run the full stack locally or with Docker and take your first checkup.</p>
+          </a>
+          <a class="card" href="architecture.html">
+            <h3>Architecture</h3>
+            <p>How the device, API, database, and SPA fit together.</p>
+          </a>
+          <a class="card" href="hardware.html">
+            <h3>Hardware build guide</h3>
+            <p>Parts list (~$35–45), wiring diagram, and assembly steps.</p>
+          </a>
+          <a class="card" href="api-reference.html">
+            <h3>API reference</h3>
+            <p>Every endpoint: auth, checkups, devices, trends, calibration.</p>
+          </a>
+        </div>
+
+        <h2>Tutorials</h2>
+        <div class="card-grid">
+          <a class="card" href="firmware.html">
+            <h3>Firmware guide</h3>
+            <p>Configure, compile, and flash the ESP32; read the serial protocol.</p>
+          </a>
+          <a class="card" href="calibration.html">
+            <h3>Calibration tutorial</h3>
+            <p>Collect labeled samples and retrain SaliNet on real measurements.</p>
+          </a>
+          <a class="card" href="science.html">
+            <h3>Analysis science</h3>
+            <p>Beer–Lambert colorimetry, spectral NNLS, and the SaliNet prior.</p>
+          </a>
+          <a class="card" href="trends.html">
+            <h3>Trends &amp; alerts</h3>
+            <p>Turn a single snapshot into a longitudinal signal.</p>
+          </a>
+          <a class="card" href="measurement-quality.html">
+            <h3>Measurement quality</h3>
+            <p>How the system decides a reading can be trusted — or should be retaken.</p>
+          </a>
+          <a class="card" href="export.html">
+            <h3>Clinician PDF export</h3>
+            <p>Generate a print-ready report with quality and trends appendix.</p>
+          </a>
+        </div>
+
+        <h2>Reference</h2>
+        <div class="card-grid">
+          <a class="card" href="backend.html">
+            <h3>Backend overview</h3>
+            <p>FastAPI app structure, configuration variables, and services.</p>
+          </a>
+          <a class="card" href="auth.html">
+            <h3>Authentication</h3>
+            <p>Sessions, bearer tokens, password hashing, and rate limiting.</p>
+          </a>
+          <a class="card" href="data-model.html">
+            <h3>Data model</h3>
+            <p>Users, sessions, checkups, readings, and migrations.</p>
+          </a>
+          <a class="card" href="security.html">
+            <h3>Security</h3>
+            <p>Fernet encryption at rest, device API keys, and ownership guards.</p>
+          </a>
+          <a class="card" href="frontend.html">
+            <h3>Frontend overview</h3>
+            <p>React SPA structure: pages, context, API client, and testing.</p>
+          </a>
+          <a class="card" href="deployment.html">
+            <h3>Deployment</h3>
+            <p>Docker Compose, Nginx, TLS, secrets, and production notes.</p>
+          </a>
+        </div>
+
+        <div class="callout warning">
+          <p class="callout-title">Not a medical device</p>
+          <p>
+            Doctordrobe is an educational home analyzer, not a medical device. The
+            sensor model ships trained on simulated chemistry until you calibrate it
+            with real samples. Confirm any clinically significant finding with a
+            laboratory test and a clinician.
+          </p>
+        </div>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · MIT-licensed project · built for learning, not diagnosis
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

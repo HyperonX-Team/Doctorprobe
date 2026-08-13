@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe measurement quality: how the system grades captures good/fair/poor from burst variance, light levels, and spectral residuals."
+    />
+    <title>Measurement quality — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Measurement quality</span>
+        </div>
+        <article>
+          <h1>Measurement quality</h1>
+          <p class="lede">
+            A ~$4 sensor held by a human reads a strip under varying light. Sometimes the
+            capture is garbage. The system grades every reading and tells the user when
+            to retake — instead of printing a confident-looking number from bad data.
+          </p>
+
+          <h2 id="grades">The grades</h2>
+          <table>
+            <thead>
+              <tr><th>Grade</th><th>Meaning</th><th>Recommended action</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="badge green">good</span></td><td>Stable burst, healthy light levels, well-conditioned fit.</td><td>None</td></tr>
+              <tr><td><span class="badge amber">fair</span></td><td>Usable, with caveats (e.g. weak burst, elevated residual).</td><td><code>review</code></td></tr>
+              <tr><td><span class="badge red">poor</span></td><td>Not trustworthy — retake with a fresh strip.</td><td><code>retake_reading</code></td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="inputs">What is graded</h2>
+          <p>The verdict is computed in <code>analyzer._measurement_quality</code> from three families of signals:</p>
+          <h3>Burst statistics</h3>
+          <ul>
+            <li>
+              <strong>Snapshot count.</strong> Fewer than 3 snapshots → <code>fair</code>;
+              a burst of ≥ 3 is recommended for a reliable read.
+            </li>
+            <li>
+              <strong>Per-channel coefficient of variation.</strong> &gt; 15% variation
+              between snapshots means the strip or lighting moved mid-scan → <code>poor</code>.
+            </li>
+          </ul>
+          <h3>Absolute light levels</h3>
+          <ul>
+            <li>All channels &lt; 35 → very little light reached the sensor → <code>poor</code>.</li>
+            <li>All channels &gt; 245 → no colour reaction detected (blank or expired strip) → <code>poor</code>.</li>
+          </ul>
+          <h3>Spectral solver diagnostics</h3>
+          <ul>
+            <li>Reconstruction residual &gt; 0.25 → lighting may have changed mid-scan → <code>fair</code>.</li>
+            <li>Condition number &gt; 200 → channels weakly separated → <code>fair</code>.</li>
+          </ul>
+
+          <h2 id="surface">How it surfaces</h2>
+          <ul>
+            <li>
+              <strong>API</strong> — each checkup carries a plain <code>quality_grade</code>
+              column for list views, and the decrypted report embeds the full
+              <code>quality</code> object: <code>grade</code>, human-readable
+              <code>reasons[]</code>, and <code>recommended_action</code>.
+            </li>
+            <li>
+              <strong>Report page</strong> — a banner for <code>fair</code>/<code>poor</code>
+              readings lists the reasons; <code>poor</code> shows
+              <em>"Recommended action: retake the reading"</em>.
+            </li>
+            <li>
+              <strong>PDF export</strong> — the quality verdict and reasons are printed in
+              the clinician report.
+            </li>
+          </ul>
+
+          <h2 id="risk-gate">Quality gates the risk score</h2>
+          <p>
+            Quality interacts with the biology in one more place: an out-of-range marker
+            only contributes to the risk score (and only gets the "attention needed"
+            message) when its spectral identifiability confidence clears the 0.5 gate.
+            A marker the measurement couldn't resolve is never presented as a confident
+            finding.
+          </p>
+
+          <h2 id="why">Why this matters</h2>
+          <ul>
+            <li><strong>Honesty.</strong> Bad readings are flagged, not averaged into false confidence.</li>
+            <li><strong>Longitudinal hygiene.</strong> Poor captures pollute trends; the grade lets users filter or retake.</li>
+            <li><strong>Clinical defensibility.</strong> The PDF a clinician sees states exactly how trustworthy the capture was.</li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Improving your capture</p>
+            <p>
+              Hold the strip flat and steady, keep ambient light consistent, use fresh
+              strips, and take the reading within the reaction window. A blank-pad
+              baseline (CAL BLANK) further stabilizes the device's optics — see
+              <a href="firmware.html">firmware</a>.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="science.html"><span class="dir">Previous</span>Analysis science</a>
+          <a href="trends.html"><span class="dir">Next</span>Trends &amp; alerts</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

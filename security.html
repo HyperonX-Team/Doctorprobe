@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe security: threat model, Fernet encryption, bearer tokens, PBKDF2, rate limiting, CORS, and the production checklist."
+    />
+    <title>Security — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Security</span>
+        </div>
+        <article>
+          <h1>Security</h1>
+          <p class="lede">
+            The security model treats the browser and the device as separate trust
+            domains, keeps secrets out of the database, and never trusts client-supplied
+            identity.
+          </p>
+
+          <h2 id="threat-model">Threat model</h2>
+          <table>
+            <thead>
+              <tr><th>Threat</th><th>Mitigation</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Database leaked</td><td>Reports are Fernet-encrypted; passwords are PBKDF2 hashes; session tokens are SHA-256 digests.</td></tr>
+              <tr><td>Guessed user id / forged requests</td><td>No endpoint accepts a user id; ownership always derives from the bearer token and is checked per request (403).</td></tr>
+              <tr><td>Credential stuffing</td><td>Per-IP login rate limiting (429 beyond budget) + uniform 401s that don't reveal which field was wrong.</td></tr>
+              <tr><td>Timing attacks on the device key</td><td><code>hmac.compare_digest</code> (constant-time) for <code>X-API-Key</code>.</td></tr>
+              <tr><td>Session theft from storage</td><td>Tokens are opaque and revocable; expiry default 30 days; password change revokes all other sessions.</td></tr>
+              <tr><td>Error details leaking internals</td><td>Unhandled exceptions log server-side and return a generic 500 envelope.</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="encryption">Encryption at rest</h2>
+          <ul>
+            <li><strong>Reports:</strong> Fernet (AES-128-CBC + HMAC-SHA256), key derived via SHA-256 from <code>FERNET_KEY</code>.</li>
+            <li><strong>Passwords:</strong> <code>pbkdf2_hmac</code>, per-user random salt, 260k iterations.</li>
+            <li><strong>Sessions:</strong> only the SHA-256 digest of each token is stored.</li>
+          </ul>
+          <div class="callout danger">
+            <p class="callout-title">Production must-change</p>
+            <p>
+              The default <code>FERNET_KEY</code> is <code>dev-key-change-me</code>.
+              Generate a strong value and inject it via your secret store:
+            </p>
+            <pre><code>python -c "import secrets; print(secrets.token_urlsafe(48))"</code></pre>
+          </div>
+
+          <h2 id="device-keys">Device API keys</h2>
+          <p>
+            Device ingest endpoints (<code>/api/devices/reading</code>,
+            <code>/api/devices/baseline</code>, <code>/api/calibration/samples</code>)
+            require the <code>X-API-Key</code> header when <code>DEVICE_API_KEY</code> is
+            set. When unset (local development), the check is skipped. The firmware
+            keeps its copy in the git-ignored <code>secrets.h</code>.
+          </p>
+
+          <h2 id="cors">CORS</h2>
+          <p>
+            Allowed origins come from the <code>CORS_ORIGINS</code> environment variable
+            — never a hardcoded list. Restrict it to your real origin(s) in production.
+          </p>
+
+          <h2 id="headers">Request hygiene</h2>
+          <ul>
+            <li>Every endpoint validates input via Pydantic v2: bounds, enums, lengths. RGB 0–255, humidity 0–100 %, temperature −40–85 °C.</li>
+            <li>Constant-time comparisons for both the device key and (via hashing) session lookups.</li>
+            <li>Structured JSON logs with request ids for auditability; secrets are never logged.</li>
+          </ul>
+
+          <h2 id="checklist">Production checklist</h2>
+          <ol>
+            <li>Generate and inject a real <code>FERNET_KEY</code> via the secret store.</li>
+            <li>Set <code>DEVICE_API_KEY</code> and mirror it in the firmware's <code>secrets.h</code>.</li>
+            <li>Restrict <code>CORS_ORIGINS</code> to the real frontend origin.</li>
+            <li>Terminate TLS at a reverse proxy; enable <code>USE_HTTPS</code> in the firmware (NTP + trust bundle).</li>
+            <li>Use PostgreSQL, not SQLite; back up the volume; run migrations as a deploy step.</li>
+            <li>Add per-device API keys with rotation and a device registry (documented next step — today a single shared key is used).</li>
+          </ol>
+
+          <div class="callout warning">
+            <p class="callout-title">Known gaps</p>
+            <p>
+              Password recovery and email verification are not implemented; the login
+              limiter is per-process (not distributed); the calibration read endpoints
+              are unauthenticated by design for the local workflow. All three are tracked
+              as roadmap items.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="data-model.html"><span class="dir">Previous</span>Data model</a>
+          <a href="frontend.html"><span class="dir">Next</span>Frontend overview</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

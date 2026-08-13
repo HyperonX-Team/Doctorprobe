@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe analysis science: strip colorimetry, Beer-Lambert reflectance, the ill-posed RGB-to-panel problem, spectral NNLS, and the SaliNet model."
+    />
+    <title>Analysis science — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Analysis science</span>
+        </div>
+        <article>
+          <h1>Analysis science</h1>
+          <p class="lede">
+            How a $4 colour sensor reading a strip of paper becomes five biomarker
+            concentrations — and why the pipeline is honest about when it can't.
+          </p>
+
+          <h2 id="strip-chemistry">1. The strip is colorimetric chemistry</h2>
+          <p>
+            Saliva test strips carry reagent pads. Each pad reacts with one analyte and
+            develops a coloured chromogen whose intensity follows the Beer–Lambert law:
+          </p>
+          <pre><code>A = -log10(R / R0)          # A: absorbance
+                            # R: pad reflectance (what the sensor sees)
+                            # R0: blank (unstained) reflectance
+
+concentration = A * slope   # within the linear region of the calibration curve</code></pre>
+          <p>
+            The firmware normalizes every raw channel against the sensor's clear
+            channel, so the values in the API payload are lighting-independent
+            reflectance proxies in 0..255. A darker pad = stronger reaction = higher
+            concentration.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Analyte</th><th>Signal</th><th>Unit</th><th>Reference range</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Salivary Glucose</td><td>red pad (glucose-oxidase)</td><td>mg/dL</td><td>0.5 – 7.0</td></tr>
+              <tr><td>Salivary CRP</td><td>blue pad (immunochromogenic)</td><td>ng/mL</td><td>0.02 – 1.5</td></tr>
+              <tr><td>Salivary Cortisol</td><td>green pad (ELISA-type)</td><td>µg/dL</td><td>0.1 – 0.6 (morning)</td></tr>
+              <tr><td>Salivary pH</td><td>blue/green ratio (mixed indicator)</td><td>pH</td><td>6.5 – 7.4</td></tr>
+              <tr><td>Secretory IgA</td><td>total intensity (turbidimetric)</td><td>mg/dL</td><td>5.0 – 25.0</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="ill-posed">2. The ill-posed problem</h2>
+          <p>
+            Three RGB channels cannot uniquely determine four Beer-Lambert
+            concentrations (pH is a ratio and stays on its own closed form). That is an
+            <strong>ill-posed inverse problem</strong>. The naive approach — a fixed
+            RGB→panel mapping — quietly overfits. Doctordrobe does three things instead:
+          </p>
+          <ul>
+            <li>
+              <strong>Bursts, not snapshots.</strong> A burst of snapshots of the same
+              strip is deconvolved as <em>one</em> over-determined linear system —
+              replicate measurements average out ADC/optical noise and add equations
+              beyond the three channels.
+            </li>
+            <li>
+              <strong>Physics-constrained NNLS.</strong> The solution is a non-negative
+              least-squares fit of the Beer-Lambert extinction model, regularized
+              (Tikhonov) toward a prior.
+            </li>
+            <li>
+              <strong>Honest confidences.</strong> Every analyte carries an
+              identifiability score derived from the least-squares covariance, so the
+              report can say "this marker could not be resolved" instead of printing a
+              confident-but-arbitrary number.
+            </li>
+          </ul>
+
+          <h2 id="solver">3. The spectral solver</h2>
+          <p>
+            <code>app/services/spectral.py</code> implements the reconstruction:
+          </p>
+          <dl class="kv">
+            <dt>Design matrix</dt><dd>Beer-Lambert extinction coefficients per channel per analyte (the physics).</dd>
+            <dt>Prior</dt><dd>SaliNet's prediction when the artifact is present, else the closed-form Beer-Lambert calibration — steadies the ill-conditioned directions only; the physics fit drives the data.</dd>
+            <dt>Outputs</dt><dd>Concentrations, per-analyte standard errors, and analysis metadata: <code>condition_number</code>, <code>rank</code>, <code>reconstruction_residual</code>, <code>n_measurements</code>.</dd>
+          </dl>
+          <p>
+            The report's <code>analysis</code> block exposes all of this, so the numbers
+            are auditable: which solver, which prior, how many snapshots, how ill-posed.
+          </p>
+
+          <h2 id="salinet">4. SaliNet — the machine-learning prior</h2>
+          <p>
+            SaliNet is a small Random Forest (one forest per analyte) that inverts
+            <code>rgb_r, rgb_g, rgb_b, temperature_c, humidity_pct</code> into a
+            concentration prior:
+          </p>
+          <ul>
+            <li>
+              <strong>Forward model → data.</strong>
+              <code>scripts/generate_synthetic_data.py</code> simulates Beer-Lambert
+              chemistry + pad cross-talk + ADC noise and generates the training CSV.
+            </li>
+            <li>
+              <strong>Training.</strong> <code>scripts/train_model.py</code> fits the
+              forests (150 trees, depth 11, seed 42) and writes
+              <code>salinet.joblib</code> + a <code>salinet.json</code> manifest with
+              per-analyte R²/MAE and provenance.
+            </li>
+            <li>
+              <strong>Real data priority.</strong> When an analyte has ≥ 15 real
+              calibration samples, the trainer uses them instead of synthetic data — the
+              <a href="calibration.html">calibration workflow</a>.
+            </li>
+            <li>
+              <strong>Fallback.</strong> If the artifact is missing, the analyzer uses the
+              closed-form Beer-Lambert estimate as the prior and reports
+              <code>prior_source: "beer-lambert"</code>.
+            </li>
+          </ul>
+          <p>
+            Why a Random Forest? It is small, fast, needs no feature scaling, exposes
+            feature importances (a studyable model), and is deterministic for a fixed
+            seed.
+          </p>
+
+          <h2 id="profile">5. Profile adjustments</h2>
+          <p>
+            Deterministic physiology adjustments are applied after reconstruction:
+          </p>
+          <ul>
+            <li>Older age and higher BMI nudge glucose and CRP up (metabolic physiology).</li>
+            <li>Activity level adjusts secretory IgA (exercise bolsters mucosal immunity; overtraining at athlete level blunts it).</li>
+            <li>Temperature enters the Beer-Lambert fit via enzyme-kinetics coefficients; high ambient humidity dilutes soluble markers (sIgA).</li>
+          </ul>
+
+          <h2 id="risk">6. Risk scoring</h2>
+          <p>
+            Each out-of-range marker contributes a fixed weight — <em>but only when its
+            spectral identifiability clears the confidence gate</em>. A marker the
+            measurement could not resolve never inflates the risk label. Thresholds:
+            ≥ 0.45 → <code>high</code>, ≥ 0.2 → <code>medium</code>, else <code>low</code>.
+          </p>
+
+          <div class="callout note">
+            <p class="callout-title">Deterministic by design</p>
+            <p>
+              The same snapshot + profile always produce the same report — no random
+              sampling, no simulated readings. Reproducibility is what makes
+              longitudinal <a href="trends.html">trends</a> meaningful.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="calibration.html"><span class="dir">Previous</span>Calibration tutorial</a>
+          <a href="measurement-quality.html"><span class="dir">Next</span>Measurement quality</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe firmware tutorial: install the toolchain, configure config.h and secrets.h, compile and flash the ESP32, and understand the serial protocol."
+    />
+    <title>Firmware guide — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Firmware guide</span>
+        </div>
+        <article>
+          <h1>Firmware guide</h1>
+          <p class="lede">
+            Configure, compile, and flash the ESP32 firmware, then understand what it
+            does on boot, on button press, and in calibration mode.
+          </p>
+
+          <h2 id="prereqs">1. One-time toolchain setup</h2>
+          <pre><code>arduino-cli core update-index
+arduino-cli core install esp32:esp32@2.0.14
+arduino-cli lib install "Adafruit TCS34725" "DHT sensor library" "ArduinoJson"</code></pre>
+          <table>
+            <thead>
+              <tr><th>Library</th><th>Version</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Adafruit TCS34725</td><td>latest</td></tr>
+              <tr><td>DHT sensor library</td><td>latest</td></tr>
+              <tr><td>ArduinoJson</td><td>^7</td></tr>
+            </tbody>
+          </table>
+          <p>(Arduino IDE 2.x users: install the same via Library/Boards Manager.)</p>
+
+          <h2 id="config">2. Configuration</h2>
+          <pre><code>cd arduino/doctordrobe
+cp secrets.h.example secrets.h     # set DEVICE_API_KEY if the backend requires it</code></pre>
+          <p>Edit <code>config.h</code>:</p>
+          <table>
+            <thead>
+              <tr><th>Setting</th><th>Example</th><th>Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>WIFI_SSID</code> / <code>WIFI_PASS</code></td><td><code>"my_wifi"</code></td><td>Your 2.4 GHz network</td></tr>
+              <tr><td><code>BACKEND_HOST</code> / <code>BACKEND_PORT</code></td><td><code>"192.168.1.100"</code> / <code>8000</code></td><td>API address</td></tr>
+              <tr><td><code>USE_HTTPS</code></td><td><code>false</code></td><td>TLS on/off (true behind a TLS proxy)</td></tr>
+              <tr><td><code>DEVICE_ID</code></td><td><code>"doctordrobe_demo_001"</code></td><td>Must match the Device ID in the app</td></tr>
+            </tbody>
+          </table>
+          <p>
+            <code>secrets.h</code> holds <code>DEVICE_API_KEY</code> (required when the
+            backend sets <code>DEVICE_API_KEY</code>) and <code>ROOT_CA_PEM</code> (only
+            for private CAs). It is git-ignored — never commit it.
+          </p>
+
+          <h2 id="compile">3. Compile and upload</h2>
+          <pre><code>arduino-cli board list                        # find your COM port
+arduino-cli compile --fqbn esp32:esp32:esp32 doctordrobe
+arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 doctordrobe
+# Linux/macOS: use /dev/ttyUSB0 instead of COM3</code></pre>
+          <p>
+            Expected result: ~60% of program storage. Arduino IDE 2.x: open
+            <code>arduino/doctordrobe/doctordrobe.ino</code>, pick "ESP32 Dev Module" +
+            port, click Upload.
+          </p>
+
+          <h2 id="behavior">4. Behaviour</h2>
+          <h3>Boot</h3>
+          <ul>
+            <li>Connects to Wi-Fi (retry every 5 s, up to 20 attempts).</li>
+            <li>Syncs NTP when <code>USE_HTTPS</code> is true — required for TLS validation.</li>
+            <li>Prints boot status to the serial monitor at 115200 baud.</li>
+          </ul>
+          <h3>Button press</h3>
+          <ol>
+            <li>Reads the TCS34725 (RGB normalized against the clear channel) and the DHT22.</li>
+            <li>POSTs <code>{"device_id", "rgb_r", "rgb_g", "rgb_b", "temperature_c", "humidity_pct"}</code> to <code>/api/devices/reading</code>.</li>
+            <li>LED blinks 3× on HTTP 200/201; stays on 5 s on failure.</li>
+            <li>Network drops trigger automatic reconnect with backoff.</li>
+          </ol>
+
+          <h2 id="serial">5. Serial protocol</h2>
+          <p>Open the Serial Monitor at 115200 baud:</p>
+          <table>
+            <thead>
+              <tr><th>Command</th><th>Effect</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>CAL glucose 2.5</code></td><td>Arm calibration mode: the <em>next</em> button press is labeled glucose @ 2.5 and POSTed to <code>/api/calibration/samples</code> (averaging 10 reads).</td></tr>
+              <tr><td><code>CALCR</code> / <code>CALCLEAR</code></td><td>Disarm calibration mode without capturing.</td></tr>
+            </tbody>
+          </table>
+          <p>
+            The full calibration workflow (control standards, capture strategy, retrain)
+            is on the <a href="calibration.html">calibration tutorial</a> page.
+          </p>
+
+          <h2 id="https">6. HTTPS notes</h2>
+          <ul>
+            <li>With <code>USE_HTTPS true</code>, the device verifies the server certificate against the bundled root CA (NTP must have synced first).</li>
+            <li>For a LAN-only setup with a self-signed proxy cert, either install the CA in <code>ROOT_CA_PEM</code> or keep <code>USE_HTTPS false</code>.</li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Next</p>
+            <p>
+              Once the device reports readings, collect labeled samples with
+              <a href="calibration.html">calibration mode</a> to make the model real.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="hardware.html"><span class="dir">Previous</span>Hardware build guide</a>
+          <a href="calibration.html"><span class="dir">Next</span>Calibration tutorial</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

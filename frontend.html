@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe frontend overview: React SPA structure, pages, session handling, API client, and Vitest testing."
+    />
+    <title>Frontend overview — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Frontend overview</span>
+        </div>
+        <article>
+          <h1>Frontend overview</h1>
+          <p class="lede">
+            A React 18 + TypeScript (strict) + Vite 5 + Tailwind 3.4 single-page app.
+            Every page has explicit loading, empty, and error states, and non-2xx
+            responses surface the backend's <code>detail</code> message.
+          </p>
+
+          <h2 id="structure">Structure</h2>
+          <pre><code>src/
+  api/         typed fetch client + endpoint constants (no secrets)
+  types/       mirrors the backend Pydantic schemas exactly
+  context/     UserProvider — bearer-token session
+  hooks/       useUser, useCheckup, useDeviceStatus (polling)
+  components/  layout shell, ChatBubble, ReportTable, Toast, dialogs…
+  pages/       Welcome, Login, Home, Checkup, Report, History,
+               Trends, Vault, Calibration, Settings
+  utils/       formatters, error messages
+tests/         welcome, login, checkup, report, trends, calibration,
+               toast, confirm-dialog, useUser</code></pre>
+
+          <h2 id="pages">The pages</h2>
+          <table>
+            <thead>
+              <tr><th>Route</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/welcome</code></td><td>Registration: email + password + profile.</td></tr>
+              <tr><td><code>/login</code></td><td>Email + password sign-in.</td></tr>
+              <tr><td><code>/</code></td><td>Home: token balance, latest checkup, device status.</td></tr>
+              <tr><td><code>/checkup</code></td><td>Run an analysis from the latest device reading.</td></tr>
+              <tr><td><code>/report/:checkupId</code></td><td>Chat-style report, quality banner, share + PDF export.</td></tr>
+              <tr><td><code>/history</code></td><td>All checkups, newest first, with delete.</td></tr>
+              <tr><td><code>/trends</code></td><td>Per-marker SVG charts, stats, and alerts over 30/90/365 days.</td></tr>
+              <tr><td><code>/vault</code></td><td>Archive view + JSON export with encryption fingerprint.</td></tr>
+              <tr><td><code>/calibration</code></td><td>Sample coverage per analyte, model status, CSV export.</td></tr>
+              <tr><td><code>/settings</code></td><td>Email, device id, sharing toggle, change password, delete account.</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="session">Session handling</h2>
+          <ol>
+            <li>
+              <strong>Sign in</strong> — <code>login(token, user)</code> stores the token
+              in <code>localStorage</code> (<code>doctordrobe_token</code>) and the
+              profile in context.
+            </li>
+            <li>
+              <strong>Every request</strong> — the API client attaches
+              <code>Authorization: Bearer &lt;token&gt;</code> automatically.
+            </li>
+            <li>
+              <strong>Startup</strong> — <code>UserProvider</code> re-hydrates via
+              <code>GET /api/auth/me</code>; a 401 clears the token and signs out.
+            </li>
+            <li>
+              <strong>Logout</strong> — best-effort server-side revocation, then local
+              state cleared.
+            </li>
+          </ol>
+          <p>
+            The router guards routes: unauthenticated users are redirected to
+            <code>/welcome</code>; signed-in users are redirected away from the auth
+            pages.
+          </p>
+
+          <h2 id="api-client">API client</h2>
+          <p>
+            <code>src/api/client.ts</code> is a typed fetch wrapper: JSON parsing, the
+            <code>{"detail"}</code> error envelope surfaced as
+            <code>ApiError(status, message)</code>, blob fetches for the PDF/CSV exports,
+            and the bearer header. Endpoint paths live in <code>endpoints.ts</code>; the
+            base URL comes from <code>VITE_API_BASE_URL</code> (localhost:8000 in dev,
+            <code>/api</code> behind Nginx in production).
+          </p>
+
+          <h2 id="quality-gates">Quality gates</h2>
+          <pre><code>npm run dev       # Vite dev server (port 5173)
+npm run build     # tsc -b typecheck + production build
+npm test          # Vitest + React Testing Library (33 tests)
+npm run lint      # ESLint, zero warnings allowed</code></pre>
+          <p>
+            Tests use mocked <code>fetch</code> and URL-aware response shapes — no
+            network calls escape the test environment. The session token is stubbed via
+            <code>localStorage</code> and the context's <code>login</code>.
+          </p>
+
+          <div class="callout note">
+            <p class="callout-title">No UI library</p>
+            <p>
+              Charts and tables are hand-rolled (SVG polyline charts, semantic HTML
+              tables) — zero runtime dependencies beyond React and the router.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="security.html"><span class="dir">Previous</span>Security</a>
+          <a href="hardware.html"><span class="dir">Next</span>Hardware build guide</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

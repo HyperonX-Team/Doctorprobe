@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe trends guide: longitudinal per-marker series, deterministic alerts, the /api/trends payload, and the charts page."
+    />
+    <title>Trends &amp; alerts — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Trends &amp; alerts</span>
+        </div>
+        <article>
+          <h1>Trends &amp; alerts</h1>
+          <p class="lede">
+            A single reading is a snapshot; a sequence of checkups is a signal. Trends
+            turns the time series you're already collecting into something you can act
+            on — with explainable, deterministic alerts.
+          </p>
+
+          <h2 id="why">Why longitudinal matters</h2>
+          <p>
+            The biggest gap between a home gadget and a health tool is context. Cortisol
+            at 0.4 µg/dL means little in isolation; a cortisol line that has climbed
+            every morning for a week means something. Trends make the data
+            self-referential: the user's own history becomes the baseline.
+          </p>
+
+          <h2 id="api">The API</h2>
+          <p><code>GET /api/trends?window_days=30</code> (auth required, 1–365 days):</p>
+          <pre><code>{
+  "window_days": 30,
+  "checkup_count": 12,
+  "alert_count": 2,
+  "markers": {
+    "glucose": {
+      "name": "Salivary Glucose", "unit": "mg/dL",
+      "ref_low": 0.5, "ref_high": 7.0,
+      "points": [
+        {"date": "2026-08-01T08:00:00Z", "value": 2.1, "state": "normal", "confidence": 0.9},
+        {"date": "2026-08-05T08:00:00Z", "value": 2.4, "state": "normal", "confidence": 0.9}
+      ],
+      "stats": {"count": 12, "mean": 2.3, "std": 0.4, "min": 1.9, "max": 3.1, "latest": 2.8},
+      "alerts": [
+        {"type": "rising_trend", "severity": "warning",
+         "message": "Salivary Glucose has risen over the last 3 checkups (2.10 → 2.80 mg/dL). Worth keeping an eye on."}
+      ]
+    }
+  }
+}</code></pre>
+          <p>
+            The service decrypts the user's own checkups server-side and returns only
+            aggregates — never encrypted payloads. Series are oldest → newest, so the UI
+            can draw them directly.
+          </p>
+
+          <h2 id="alerts">The alert rules</h2>
+          <p>All alerts are deterministic and conservative — a heads-up to look closer, never a diagnosis:</p>
+          <table>
+            <thead>
+              <tr><th>Type</th><th>Rule</th><th>Severity</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>rising_trend</code></td><td>The last 3 values each rose.</td><td>warning</td></tr>
+              <tr><td><code>falling_trend</code></td><td>The last 3 values each fell.</td><td>info</td></tr>
+              <tr><td><code>deviation_from_baseline</code></td><td>Latest value is &gt; 2 standard deviations from the mean of the user's earlier readings.</td><td>warning</td></tr>
+              <tr><td><code>repeated_out_of_range</code></td><td>≥ 2 of the last 3 readings fell outside the reference range.</td><td>warning</td></tr>
+              <tr><td><code>new_out_of_range</code></td><td>The latest reading went out of range after in-range readings.</td><td>info</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Alerts only fire with at least 3 checkups in the window, so a couple of
+            noisy points never trigger anything.
+          </p>
+
+          <h2 id="ui">The Trends page</h2>
+          <ul>
+            <li>
+              <strong>Window switcher</strong> — 30 / 90 / 365 days; the charts refetch
+              per window.
+            </li>
+            <li>
+              <strong>Per-marker SVG line charts</strong> — dependency-free, with the
+              reference range drawn as a shaded band and points coloured by state
+              (low / normal / high).
+            </li>
+            <li>
+              <strong>Stats line</strong> — latest, mean, and the state chips per point.
+            </li>
+            <li>
+              <strong>Alert cards</strong> — the explainable message for each fired rule.
+            </li>
+          </ul>
+
+          <h2 id="roadmap">Roadmap</h2>
+          <ul>
+            <li>Push notifications for out-of-range readings and missed checkups.</li>
+            <li>Time-of-day analysis (cortisol is morning-sensitive).</li>
+            <li>Per-marker quality-weighted series that down-weight poor captures.</li>
+          </ul>
+        </article>
+
+        <nav class="prevnext">
+          <a href="measurement-quality.html"><span class="dir">Previous</span>Measurement quality</a>
+          <a href="export.html"><span class="dir">Next</span>Clinician PDF export</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

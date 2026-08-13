@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Contributing to Doctordrobe: development setup, quality gates, code conventions, and the highest-value contribution areas."
+    />
+    <title>Contributing — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Contributing</span>
+        </div>
+        <article>
+          <h1>Contributing</h1>
+          <p class="lede">
+            The project is small, honest, and test-first. If you want to help, the
+            highest-value work is real calibration data and the biology in the forward
+            model — not more UI chrome.
+          </p>
+
+          <h2 id="setup">Development setup</h2>
+          <pre><code># Backend
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev</code></pre>
+
+          <h2 id="quality-gates">Quality gates (CI runs all of these)</h2>
+          <table>
+            <thead>
+              <tr><th>Gate</th><th>Command</th><th>Current state</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Backend tests</td><td><code>cd backend && python -m pytest</code></td><td>72 passing</td></tr>
+              <tr><td>Migration smoke test</td><td><code>alembic upgrade head</code></td><td>0001 → 0004 clean</td></tr>
+              <tr><td>Frontend tests</td><td><code>cd frontend && npm test</code></td><td>33 passing</td></tr>
+              <tr><td>Frontend lint</td><td><code>npm run lint</code></td><td>zero warnings allowed</td></tr>
+              <tr><td>Typecheck + build</td><td><code>npm run build</code></td><td>strict <code>tsc -b</code></td></tr>
+              <tr><td>Docker images</td><td>CI <code>docker-build</code> job</td><td>backend + frontend</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="conventions">Conventions</h2>
+          <ul>
+            <li>
+              <strong>Determinism is sacred.</strong> The analyzer must produce the same
+              report for the same input — no randomness, no simulated readings.
+            </li>
+            <li>
+              <strong>Ownership from the token.</strong> New endpoints derive the user
+              from <code>get_current_user</code>; never accept a client-supplied id.
+            </li>
+            <li>
+              <strong>Tests are in-memory.</strong> Backend tests use in-memory SQLite
+              via pytest-asyncio; frontend tests mock <code>fetch</code> with URL-aware
+              shapes.
+            </li>
+            <li>
+              <strong>Types mirror the backend.</strong> Frontend types in
+              <code>src/types/index.ts</code> must stay in sync with the Pydantic
+              schemas.
+            </li>
+            <li>
+              <strong>Docs live with the code.</strong> This site (in <code>docs/</code>)
+              and the READMEs should be updated with behaviour changes.
+            </li>
+          </ul>
+
+          <h2 id="where-to-help">Where to help</h2>
+          <h3>Highest value</h3>
+          <ul>
+            <li>
+              <strong>Real calibration data.</strong> The single biggest lever: collect
+              labeled samples per the <a href="calibration.html">calibration tutorial</a>
+              and publish them (or a derived dataset) so the model can be trained on
+              reality.
+            </li>
+            <li>
+              <strong>Better biology in the forward model.</strong> Improve
+              <code>generate_synthetic_data.py</code>: more realistic pad cross-talk,
+              pH buffering, temperature kinetics, strip-batch variance.
+            </li>
+            <li>
+              <strong>Clinical validation partnerships.</strong> A lab that will
+              co-measure saliva panels against reference assays.
+            </li>
+          </ul>
+          <h3>Engineering</h3>
+          <ul>
+            <li>Per-device API keys with rotation + a device registry.</li>
+            <li>Password recovery and email verification (see <a href="auth.html#roadmap">auth roadmap</a>).</li>
+            <li>Distributed login rate limiting (Redis).</li>
+            <li>Trend alert push notifications.</li>
+            <li>Quality-weighted trend series that down-weight poor captures.</li>
+            <li>Session-management UI (list + revoke sessions in Settings).</li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Good first PR</p>
+            <p>
+              Pick something from the Engineering list above, add the failing test first,
+              then the implementation. The test suites are the specification.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="deployment.html"><span class="dir">Previous</span>Deployment</a>
+          <a href="index.html"><span class="dir">Next</span>Home</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

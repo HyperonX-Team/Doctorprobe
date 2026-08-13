@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe API reference: all endpoints for auth, checkups, devices, trends, and calibration with payload examples."
+    />
+    <title>API reference — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>API reference</span>
+        </div>
+        <article>
+          <h1>API reference</h1>
+          <p class="lede">
+            Base URL <code>/api</code>. All errors use the envelope
+            <code>{"detail": "message"}</code>. Interactive docs are served at
+            <code>/docs</code> (Swagger UI). Endpoints marked
+            <span class="badge blue">auth</span> require
+            <code>Authorization: Bearer &lt;token&gt;</code>; those marked
+            <span class="badge grey">device</span> require <code>X-API-Key</code> when
+            <code>DEVICE_API_KEY</code> is configured.
+          </p>
+
+          <h2 id="auth">Auth</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/api/auth/register</code></td><td>—</td><td><code>RegisterRequest</code></td><td><code>AuthResponse</code> (201)</td></tr>
+              <tr><td>POST</td><td><code>/api/auth/login</code></td><td>—</td><td><code>LoginRequest</code></td><td><code>AuthResponse</code></td></tr>
+              <tr><td>POST</td><td><code>/api/auth/logout</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>UserResponse</code></td></tr>
+              <tr><td>PUT</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td><code>UserUpdate</code></td><td><code>UserResponse</code></td></tr>
+              <tr><td>DELETE</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>POST</td><td><code>/api/auth/change-password</code></td><td><span class="badge blue">auth</span></td><td><code>ChangePasswordRequest</code></td><td><code>{"detail"}</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me/checkups</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupSummary[]</code></td></tr>
+            </tbody>
+          </table>
+          <pre><code>curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correct-horse-9!",
+       "age":34,"sex":"female","height_cm":165,"weight_kg":62,
+       "activity_level":"moderate","device_id":"doctordrobe_demo_001"}'</code></pre>
+          <pre><code>{
+  "token": "Qw9pV...opaque-bearer-token...",
+  "user": {
+    "id": "274078c2-c56b-44c6-8785-6c1bb9ec472c",
+    "email": "you@example.com",
+    "age": 34, "sex": "female", "height_cm": 165.0, "weight_kg": 62.0,
+    "activity_level": "moderate", "share_data": false, "token_balance": 0,
+    "device_id": "doctordrobe_demo_001", "created_at": "2026-07-31T20:20:58Z"
+  }
+}</code></pre>
+          <div class="callout note">
+            <p class="callout-title">Login rate limiting</p>
+            <p>
+              Login is limited to <code>AUTH_LOGIN_MAX_ATTEMPTS</code> attempts per IP
+              within <code>AUTH_LOGIN_WINDOW_SECONDS</code>; exceeding it returns
+              <strong>429</strong>.
+            </p>
+          </div>
+
+          <h2 id="checkups">Checkups</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/api/checkups</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupCreated</code> (201)</td></tr>
+              <tr><td>GET</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupResponse</code> (decrypted)</td></tr>
+              <tr><td>DELETE</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>POST</td><td><code>/api/checkups/{id}/share</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>ShareResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/checkups/{id}/export</code></td><td><span class="badge blue">auth</span></td><td>—</td><td>PDF (application/pdf)</td></tr>
+            </tbody>
+          </table>
+          <ul>
+            <li><code>POST /api/checkups</code> analyses the user's latest device burst; returns <strong>409</strong> when no reading exists.</li>
+            <li>Ownership is enforced: another user's checkup returns <strong>403</strong>.</li>
+            <li>Sharing awards <code>TOKEN_REWARD</code> once; a second share returns <strong>409</strong>.</li>
+          </ul>
+
+          <h2 id="devices">Devices</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/api/devices/reading</code></td><td><span class="badge grey">device</span></td><td><code>DeviceReadingCreate</code></td><td><code>DeviceReadingResponse</code> (201)</td></tr>
+              <tr><td>POST</td><td><code>/api/devices/readings</code></td><td><span class="badge grey">device</span></td><td><code>DeviceReadingsCreate</code> (burst)</td><td><code>DeviceReadingsResponse</code> (201)</td></tr>
+              <tr><td>GET</td><td><code>/api/devices/latest</code></td><td>—</td><td><code>?device_id=</code></td><td><code>DeviceReadingResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/devices/status</code></td><td>—</td><td><code>?device_id=</code></td><td><code>{"connected", "last_seen"}</code></td></tr>
+              <tr><td>POST</td><td><code>/api/devices/baseline</code></td><td><span class="badge grey">device</span></td><td><code>DeviceBaselineCreate</code> (CAL BLANK)</td><td><code>DeviceBaselineResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/devices/baseline</code></td><td>—</td><td><code>?device_id=</code></td><td><code>DeviceBaselineResponse</code></td></tr>
+            </tbody>
+          </table>
+          <pre><code>curl -X POST http://localhost:8000/api/devices/reading \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $DEVICE_API_KEY" \
+  -d '{"device_id":"doctordrobe_demo_001","rgb_r":120,"rgb_g":200,
+       "rgb_b":60,"temperature_c":24.5,"humidity_pct":45}'</code></pre>
+
+          <h2 id="trends">Trends</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>GET</td><td><code>/api/trends</code></td><td><span class="badge blue">auth</span></td><td><code>?window_days=</code> (1–365, default 30)</td><td>per-marker series, stats, alerts</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Returns <code>checkup_count</code>, <code>alert_count</code>, and a
+            <code>markers</code> map keyed by analyte with <code>points</code>
+            (oldest → newest), <code>stats</code> (mean/std/min/max/latest), and
+            <code>alerts</code>. See <a href="trends.html">Trends &amp; alerts</a>.
+          </p>
+
+          <h2 id="calibration">Calibration</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/api/calibration/samples</code></td><td><span class="badge grey">device</span></td><td><code>CalibrationSampleCreate</code></td><td><code>CalibrationSampleResponse</code> (201)</td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/samples</code></td><td>—</td><td><code>?analyte=</code> · <code>?limit=</code></td><td><code>CalibrationSampleResponse[]</code></td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/stats</code></td><td>—</td><td>—</td><td>per-analyte coverage + model status</td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/export</code></td><td>—</td><td>—</td><td>trainer CSV (<code>real_training.csv</code>)</td></tr>
+              <tr><td>DELETE</td><td><code>/api/calibration/samples</code></td><td>—</td><td>—</td><td><code>{"detail"}</code></td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="meta">Meta</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>GET</td><td><code>/health</code></td><td><code>{"status": "ok"}</code></td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout tip">
+            <p class="callout-title">Status codes you will see</p>
+            <p>
+              <strong>401</strong> missing/expired token · <strong>403</strong> not your
+              resource · <strong>404</strong> not found · <strong>409</strong> conflict
+              (no reading, duplicate email, re-share) · <strong>422</strong> validation ·
+              <strong>429</strong> rate limited.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="backend.html"><span class="dir">Previous</span>Backend overview</a>
+          <a href="auth.html"><span class="dir">Next</span>Authentication</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>

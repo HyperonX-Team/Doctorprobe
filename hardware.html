@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Doctordrobe hardware build tutorial: full parts list (~$35-45), wiring diagram, assembly steps, first power-on, and troubleshooting."
+    />
+    <title>Hardware build guide — Doctordrobe Docs</title>
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
+      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <div class="search">
+        <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
+      </div>
+      <a class="gh-link" href="https://github.com/hyperonx-team/doctorprobe">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <h4>Getting started</h4>
+        <a href="getting-started.html" data-keywords="quick start install run setup">Getting started</a>
+        <a href="architecture.html" data-keywords="architecture components stack diagram">Architecture</a>
+        <a href="faq.html" data-keywords="faq questions medical device disclaimer">FAQ</a>
+        <a href="glossary.html" data-keywords="glossary terms definitions">Glossary</a>
+
+        <h4>Backend</h4>
+        <a href="backend.html" data-keywords="fastapi backend configuration env settings">Backend overview</a>
+        <a href="api-reference.html" data-keywords="api endpoints reference http">API reference</a>
+        <a href="auth.html" data-keywords="authentication sessions tokens login password">Authentication</a>
+        <a href="data-model.html" data-keywords="database models migrations alembic sqlalchemy">Data model</a>
+        <a href="security.html" data-keywords="security fernet encryption rate limiting">Security</a>
+
+        <h4>Frontend</h4>
+        <a href="frontend.html" data-keywords="react vite spa pages components">Frontend overview</a>
+
+        <h4>Hardware &amp; firmware</h4>
+        <a href="hardware.html" data-keywords="hardware build parts wiring assembly bom">Hardware build guide</a>
+        <a href="firmware.html" data-keywords="firmware esp32 arduino flash config">Firmware guide</a>
+
+        <h4>Guides &amp; tutorials</h4>
+        <a href="calibration.html" data-keywords="calibration retrain salinet samples protocol">Calibration tutorial</a>
+        <a href="science.html" data-keywords="science beer lambert spectral nnls salinet model">Analysis science</a>
+        <a href="measurement-quality.html" data-keywords="quality grade poor fair good retake">Measurement quality</a>
+        <a href="trends.html" data-keywords="trends alerts longitudinal charts">Trends &amp; alerts</a>
+        <a href="export.html" data-keywords="export pdf clinician report download">Clinician PDF export</a>
+
+        <h4>Project</h4>
+        <a href="deployment.html" data-keywords="deployment docker production nginx tls">Deployment</a>
+        <a href="contributing.html" data-keywords="contributing development tests ci">Contributing</a>
+        <p class="no-results" id="no-results">No pages match your search.</p>
+      </nav>
+
+      <main class="main">
+        <div class="breadcrumbs">
+          <a href="index.html">Home</a><span class="sep">/</span><span>Hardware build guide</span>
+        </div>
+        <article>
+          <h1>Hardware build guide</h1>
+          <p class="lede">
+            How to buy the parts, wire them up, and get a working Doctordrobe device on
+            your desk — about an evening's work and $35–45 of parts. No soldering needed
+            on a breadboard.
+          </p>
+
+          <h2 id="bom">1. Parts list (BOM)</h2>
+          <table>
+            <thead>
+              <tr><th>#</th><th>Part</th><th>Qty</th><th>Why</th><th>Price</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>ESP32 DevKit V1 (ESP-WROOM-32) or NodeMCU-32S</td><td>1</td><td>The brain; Wi-Fi + TLS</td><td>$5–12</td></tr>
+              <tr><td>2</td><td>Adafruit TCS34725 RGB colour sensor (or compatible)</td><td>1</td><td>Reads the saliva strip colour</td><td>$4–8</td></tr>
+              <tr><td>3</td><td>DHT22 (AM2302) temperature/humidity sensor</td><td>1</td><td>Ambient compensation for the assay</td><td>$3–6</td></tr>
+              <tr><td>4</td><td>Tactile push button (momentary, NO)</td><td>1</td><td>Triggers a reading</td><td>$0.50</td></tr>
+              <tr><td>5</td><td>LED (any colour) + 220 Ω resistor</td><td>1 + 1</td><td>Status feedback (success/fail)</td><td>$0.50</td></tr>
+              <tr><td>6</td><td>Breadboard + jumper wires (M/F, M/M)</td><td>1 kit</td><td>Prototype wiring</td><td>$5</td></tr>
+              <tr><td>7</td><td>Micro-USB cable (data, not charge-only!)</td><td>1</td><td>Power + flashing</td><td>$2</td></tr>
+              <tr><td>8</td><td>USB wall adapter or power bank (5 V)</td><td>1</td><td>Off-computer power</td><td>$5</td></tr>
+              <tr><td>9</td><td>Saliva test strips (any brand, ~50 pack)</td><td>1</td><td>Sample medium</td><td>$5–15</td></tr>
+              <tr><td>10</td><td>3D-printed or plastic enclosure (optional)</td><td>1</td><td>Housing</td><td>$10–20</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Budget total: ~$35–45.</strong> Cheapest viable: ESP32 + TCS34725 + button on a breadboard (~$15).</p>
+          <div class="callout note">
+            <p class="callout-title">Alternatives</p>
+            <p>
+              Any I2C colour sensor with a library (e.g. APDS-9960) can replace the
+              TCS34725 — the firmware targets its API. DHT11 works for demos (less
+              accurate). The ESP32's onboard blue LED on GPIO2 means you can skip part #5.
+            </p>
+          </div>
+
+          <h2 id="tools">2. Tools</h2>
+          <ul>
+            <li>Screwdriver (small) — only if you use the enclosure</li>
+            <li>Soldering iron + solder — only for permanent/perfboard assembly</li>
+            <li>A computer with Arduino IDE 2.x or <code>arduino-cli</code></li>
+            <li>Multimeter (optional, for continuity checks)</li>
+          </ul>
+
+          <h2 id="wiring">3. Wiring</h2>
+          <table>
+            <thead>
+              <tr><th>Sensor / part</th><th>ESP32 pin</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>TCS34725 SDA</td><td>GPIO21</td></tr>
+              <tr><td>TCS34725 SCL</td><td>GPIO22</td></tr>
+              <tr><td>TCS34725 VCC</td><td>3V3</td></tr>
+              <tr><td>TCS34725 GND</td><td>GND</td></tr>
+              <tr><td>DHT22 DATA</td><td>GPIO4</td></tr>
+              <tr><td>DHT22 VCC</td><td>3V3</td></tr>
+              <tr><td>DHT22 GND</td><td>GND</td></tr>
+              <tr><td>Button leg A</td><td>GPIO0</td></tr>
+              <tr><td>Button leg B</td><td>GND</td></tr>
+              <tr><td>LED anode</td><td>GPIO2</td></tr>
+              <tr><td>LED cathode (via 220 Ω)</td><td>GND</td></tr>
+            </tbody>
+          </table>
+          <pre><code>ESP32 DevKit                    Breadboard
+┌────────────┐
+│ 3V3 •──────┼─────────┬──────────► TCS34725 VCC, DHT22 VCC
+│ GND •──────┼────┬────┴──────────► TCS34725 GND, DHT22 GND, button B
+│ GPIO21 SDA─┼────┴────────────────► TCS34725 SDA
+│ GPIO22 SCL─┼────────────────────► TCS34725 SCL
+│ GPIO4 ─────┼────────────────────► DHT22 DATA
+│ GPIO0 ─────┼────────────────────► button A (pull-up built-in)
+│ GPIO2 ─────┼───────────/\/\────► LED anode   (220 Ω)
+│            │            GND ◄───┘ LED cathode
+│ 5V  •      │   (USB powers the board)
+└────────────┘</code></pre>
+          <div class="callout warning">
+            <p class="callout-title">Two gotchas</p>
+            <p>
+              <strong>GPIO0</strong> doubles as the flash-mode strapping pin — don't hold
+              the button while flashing. If using a bare DHT22 (not the module), add a
+              10 kΩ pull-up between DATA and 3V3.
+            </p>
+          </div>
+
+          <h2 id="assembly">4. Assembly steps</h2>
+          <ol>
+            <li><strong>Breadboard layout.</strong> Place the ESP32 at the edge so the micro-USB port hangs off the side.</li>
+            <li><strong>Power rails.</strong> Run 3V3 and GND rails the length of the board.</li>
+            <li><strong>I2C bus.</strong> Wire SDA→GPIO21, SCL→GPIO22, and power to the TCS34725.</li>
+            <li><strong>DHT22.</strong> Wire DATA→GPIO4, power, ground.</li>
+            <li><strong>Button.</strong> One leg to GPIO0, the other to GND.</li>
+            <li><strong>LED.</strong> Anode to GPIO2 through the 220 Ω resistor; cathode to GND.</li>
+            <li><strong>Visual check.</strong> Walk the wiring table line by line before applying power. Continuity mode catches swapped SDA/SCL.</li>
+            <li><strong>Power up.</strong> Connect USB — the LED should stay off until the button is pressed.</li>
+          </ol>
+
+          <h2 id="power-on">5. First power-on test</h2>
+          <p>
+            Open the Serial Monitor at <strong>115200 baud</strong> (or
+            <code>arduino-cli monitor -p COM3 -c 115200</code>):
+          </p>
+          <pre><code>[boot] Doctordrobe firmware 1.0.0
+[sensor] TCS34725 found
+[wifi] connected, IP: 192.168.1.45</code></pre>
+          <p>
+            <code>TCS34725 not found</code> → check I2C wiring. Wi-Fi never connecting →
+            re-check <code>config.h</code> credentials (and remember: 2.4 GHz only).
+          </p>
+
+          <h2 id="using">6. Using the device</h2>
+          <ol>
+            <li>Start the backend (<code>docker compose up --build</code> or local uvicorn).</li>
+            <li>In the app, verify the Device ID matches <code>DEVICE_ID</code> in <code>config.h</code> (Settings page).</li>
+            <li>Place a saliva strip under the TCS34725.</li>
+            <li>Press the button — the firmware POSTs to <code>/api/devices/reading</code>.</li>
+            <li><strong>LED blinks 3×</strong> → accepted. App → <em>Checkup → Scan with Device</em>.</li>
+            <li><strong>LED stays on 5 s</strong> → failure. Check backend logs, <code>BACKEND_HOST</code> reachability, Wi-Fi, and <code>X-API-Key</code> if enabled.</li>
+          </ol>
+
+          <h2 id="troubleshooting">7. Troubleshooting hardware</h2>
+          <table>
+            <thead>
+              <tr><th>Symptom</th><th>Cause / fix</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>No serial output</td><td>Wrong baud, charge-only cable, board in flash mode (unplug/replug)</td></tr>
+              <tr><td><code>TCS34725 not found</code></td><td>SDA/SCL swapped; module not powered; loose jumper</td></tr>
+              <tr><td>Wi-Fi never connects</td><td>Wrong SSID/pass; ESP32 cannot see 5 GHz networks</td></tr>
+              <tr><td>LED stays on 5 s after press</td><td>Backend unreachable: host IP/port, firewall, <code>DEVICE_API_KEY</code> mismatch</td></tr>
+              <tr><td>Button does nothing</td><td>Button legs swapped or not to GND; check GPIO0 with a multimeter</td></tr>
+              <tr><td>Reading identical every time</td><td>Normal — the analysis is deterministic per reading; check the serial log for fresh sensor values</td></tr>
+              <tr><td>DHT read fails (<code>isnan</code>)</td><td>Check DATA pin + pull-up; DHT22 needs ≥2 s between reads (firmware handles it)</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="enclosure">8. Enclosure (optional)</h2>
+          <ul>
+            <li>3D-print a box (~100×60×30 mm): sensor-window hole flush with the top so strips slide under, button cutout, micro-USB notch.</li>
+            <li>Keep the sensor window clean; test strips sit flat on the glass.</li>
+            <li>A thin frosted-plastic diffuser over the sensor improves reading consistency.</li>
+          </ul>
+
+          <div class="callout tip">
+            <p class="callout-title">Next</p>
+            <p>
+              With the board wired, move on to the
+              <a href="firmware.html">firmware guide</a> to configure and flash it.
+            </p>
+          </div>
+        </article>
+
+        <nav class="prevnext">
+          <a href="frontend.html"><span class="dir">Previous</span>Frontend overview</a>
+          <a href="firmware.html"><span class="dir">Next</span>Firmware guide</a>
+        </nav>
+
+        <footer class="site-footer">
+          Doctordrobe documentation · <a href="index.html">Home</a>
+        </footer>
+      </main>
+    </div>
+
+    <script src="js/site.js"></script>
+  </body>
+</html>
