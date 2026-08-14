@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe authentication: bearer-token sessions, PBKDF2 password hashing, token revocation, and login rate limiting."
     />
-    <title>Authentication — Doctordrobe Docs</title>
+    <title>Authentication - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -64,7 +65,7 @@
           <p class="lede">
             Identity is an email + password. Successful login or registration returns an
             opaque bearer token; every other request carries it in the
-            <code>Authorization</code> header, and the owning user is derived from it —
+            <code>Authorization</code> header, and the owning user is derived from it -
             never from a client-supplied id.
           </p>
 
@@ -74,7 +75,7 @@
           </p>
           <dl class="kv">
             <dt>Token</dt><dd>32 random bytes, url-safe base64, handed to the client once.</dd>
-            <dt>Digest</dt><dd>The SHA-256 of the token is what is stored — a database leak exposes no usable sessions.</dd>
+            <dt>Digest</dt><dd>The SHA-256 of the token is what is stored - a database leak exposes no usable sessions.</dd>
             <dt>Expiry</dt><dd>Sessions expire after <code>SESSION_TTL_DAYS</code> (default 30).</dd>
             <dt>Revocation</dt><dd>Logout revokes the current session; password change revokes every other session; account deletion removes all sessions.</dd>
           </dl>
@@ -89,9 +90,9 @@
 
           <h2 id="passwords">Password handling</h2>
           <ul>
-            <li>Hashed with <code>pbkdf2_hmac</code> (SHA-256, 260,000 iterations) and a per-user random salt — see <code>app/utils/passwords.py</code>.</li>
+            <li>Hashed with <code>pbkdf2_hmac</code> (SHA-256, 260,000 iterations) and a per-user random salt - see <code>app/utils/passwords.py</code>.</li>
             <li>Minimum length enforced by <code>PASSWORD_MIN_LENGTH</code> (default 8) at registration and change.</li>
-            <li>Emails are normalized to lowercase for uniqueness — registration with <code>Test@Example.com</code> and <code>test@example.com</code> conflicts.</li>
+            <li>Emails are normalized to lowercase for uniqueness - registration with <code>Test@Example.com</code> and <code>test@example.com</code> conflicts.</li>
             <li>Login failures return a uniform <strong>401</strong> ("Incorrect email or password") so attackers can't tell which part was wrong.</li>
           </ul>
 
@@ -101,7 +102,7 @@
             <code>AUTH_LOGIN_MAX_ATTEMPTS</code> (10) attempts within
             <code>AUTH_LOGIN_WINDOW_SECONDS</code> (900 s). Beyond that, login returns
             <strong>429</strong>. It honours <code>X-Forwarded-For</code> when present.
-            This is best-effort on a single instance — a distributed limiter is a
+            This is best-effort on a single instance - a distributed limiter is a
             documented production upgrade.
           </p>
 
@@ -117,7 +118,7 @@
           <div class="callout warning">
             <p class="callout-title">Why no user_id params?</p>
             <p>
-              The old API accepted <code>user_id</code> as a query param — trivially
+              The old API accepted <code>user_id</code> as a query param - trivially
               guessable and forgeable. The auth migration removed that surface entirely;
               tokens are the only identity the API trusts.
             </p>
@@ -137,10 +138,10 @@
 
           <h2 id="roadmap">Roadmap</h2>
           <ul>
-            <li><strong>Password recovery</strong> — email-based reset; deliberately omitted for now (self-hosted project).</li>
-            <li><strong>Passkeys / WebAuthn</strong> — a stronger credential than passwords.</li>
-            <li><strong>Distributed rate limiting</strong> — Redis-backed limiter for multi-instance deploys.</li>
-            <li><strong>Session list UI</strong> — see and revoke active sessions from Settings.</li>
+            <li><strong>Password recovery</strong> - email-based reset; deliberately omitted for now (self-hosted project).</li>
+            <li><strong>Passkeys / WebAuthn</strong> - a stronger credential than passwords.</li>
+            <li><strong>Distributed rate limiting</strong> - Redis-backed limiter for multi-instance deploys.</li>
+            <li><strong>Session list UI</strong> - see and revoke active sessions from Settings.</li>
           </ul>
         </article>
 

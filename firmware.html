@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe firmware tutorial: install the toolchain, configure config.h and secrets.h, compile and flash the ESP32, and understand the serial protocol."
     />
-    <title>Firmware guide — Doctordrobe Docs</title>
+    <title>Firmware guide - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -100,7 +101,7 @@ cp secrets.h.example secrets.h     # set DEVICE_API_KEY if the backend requires 
           <p>
             <code>secrets.h</code> holds <code>DEVICE_API_KEY</code> (required when the
             backend sets <code>DEVICE_API_KEY</code>) and <code>ROOT_CA_PEM</code> (only
-            for private CAs). It is git-ignored — never commit it.
+            for private CAs). It is git-ignored - never commit it.
           </p>
 
           <h2 id="compile">3. Compile and upload</h2>
@@ -118,7 +119,7 @@ arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 doctordrobe
           <h3>Boot</h3>
           <ul>
             <li>Connects to Wi-Fi (retry every 5 s, up to 20 attempts).</li>
-            <li>Syncs NTP when <code>USE_HTTPS</code> is true — required for TLS validation.</li>
+            <li>Syncs NTP when <code>USE_HTTPS</code> is true - required for TLS validation.</li>
             <li>Prints boot status to the serial monitor at 115200 baud.</li>
           </ul>
           <h3>Button press</h3>

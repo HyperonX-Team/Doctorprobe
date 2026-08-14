@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe security: threat model, Fernet encryption, bearer tokens, PBKDF2, rate limiting, CORS, and the production checklist."
     />
-    <title>Security — Doctordrobe Docs</title>
+    <title>Security - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -109,12 +110,12 @@
           <h2 id="cors">CORS</h2>
           <p>
             Allowed origins come from the <code>CORS_ORIGINS</code> environment variable
-            — never a hardcoded list. Restrict it to your real origin(s) in production.
+            - never a hardcoded list. Restrict it to your real origin(s) in production.
           </p>
 
           <h2 id="headers">Request hygiene</h2>
           <ul>
-            <li>Every endpoint validates input via Pydantic v2: bounds, enums, lengths. RGB 0–255, humidity 0–100 %, temperature −40–85 °C.</li>
+            <li>Every endpoint validates input via Pydantic v2: bounds, enums, lengths. RGB 0-255, humidity 0-100 %, temperature −40-85 °C.</li>
             <li>Constant-time comparisons for both the device key and (via hashing) session lookups.</li>
             <li>Structured JSON logs with request ids for auditability; secrets are never logged.</li>
           </ul>
@@ -126,7 +127,7 @@
             <li>Restrict <code>CORS_ORIGINS</code> to the real frontend origin.</li>
             <li>Terminate TLS at a reverse proxy; enable <code>USE_HTTPS</code> in the firmware (NTP + trust bundle).</li>
             <li>Use PostgreSQL, not SQLite; back up the volume; run migrations as a deploy step.</li>
-            <li>Add per-device API keys with rotation and a device registry (documented next step — today a single shared key is used).</li>
+            <li>Add per-device API keys with rotation and a device registry (documented next step - today a single shared key is used).</li>
           </ol>
 
           <div class="callout warning">

@@ -1,4 +1,4 @@
-/* Doctordrobe Docs — MDN-inspired documentation stylesheet. */
+/* Doctordrobe Docs - MDN-inspired documentation stylesheet. */
 :root {
   --brand: #2f7059;
   --brand-dark: #1b3a2f;
@@ -57,16 +57,12 @@ a:hover { text-decoration: underline; }
   font-size: 1.05rem;
   white-space: nowrap;
 }
-.topbar .logo .mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.topbar .logo .logo-icon {
+  display: inline-block;
   width: 1.7rem;
   height: 1.7rem;
   border-radius: 0.45rem;
-  background: #fff;
-  color: var(--brand-dark);
-  font-weight: 800;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.18);
 }
 .topbar .search {
   flex: 1;

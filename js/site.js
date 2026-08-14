@@ -1,4 +1,4 @@
-// Doctordrobe Docs — sidebar search filter, mobile toggle, copy buttons.
+// Doctordrobe Docs - sidebar search filter, mobile toggle, copy buttons.
 
 (function () {
   "use strict";
