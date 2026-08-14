@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe frontend overview: React SPA structure, pages, session handling, API client, and Vitest testing."
     />
-    <title>Frontend overview — Doctordrobe Docs</title>
+    <title>Frontend overview - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -71,7 +72,7 @@
           <pre><code>src/
   api/         typed fetch client + endpoint constants (no secrets)
   types/       mirrors the backend Pydantic schemas exactly
-  context/     UserProvider — bearer-token session
+  context/     UserProvider - bearer-token session
   hooks/       useUser, useCheckup, useDeviceStatus (polling)
   components/  layout shell, ChatBubble, ReportTable, Toast, dialogs…
   pages/       Welcome, Login, Home, Checkup, Report, History,
@@ -102,20 +103,20 @@ tests/         welcome, login, checkup, report, trends, calibration,
           <h2 id="session">Session handling</h2>
           <ol>
             <li>
-              <strong>Sign in</strong> — <code>login(token, user)</code> stores the token
+              <strong>Sign in</strong> - <code>login(token, user)</code> stores the token
               in <code>localStorage</code> (<code>doctordrobe_token</code>) and the
               profile in context.
             </li>
             <li>
-              <strong>Every request</strong> — the API client attaches
+              <strong>Every request</strong> - the API client attaches
               <code>Authorization: Bearer &lt;token&gt;</code> automatically.
             </li>
             <li>
-              <strong>Startup</strong> — <code>UserProvider</code> re-hydrates via
+              <strong>Startup</strong> - <code>UserProvider</code> re-hydrates via
               <code>GET /api/auth/me</code>; a 401 clears the token and signs out.
             </li>
             <li>
-              <strong>Logout</strong> — best-effort server-side revocation, then local
+              <strong>Logout</strong> - best-effort server-side revocation, then local
               state cleared.
             </li>
           </ol>
@@ -141,7 +142,7 @@ npm run build     # tsc -b typecheck + production build
 npm test          # Vitest + React Testing Library (33 tests)
 npm run lint      # ESLint, zero warnings allowed</code></pre>
           <p>
-            Tests use mocked <code>fetch</code> and URL-aware response shapes — no
+            Tests use mocked <code>fetch</code> and URL-aware response shapes - no
             network calls escape the test environment. The session token is stubbed via
             <code>localStorage</code> and the context's <code>login</code>.
           </p>
@@ -150,7 +151,7 @@ npm run lint      # ESLint, zero warnings allowed</code></pre>
             <p class="callout-title">No UI library</p>
             <p>
               Charts and tables are hand-rolled (SVG polyline charts, semantic HTML
-              tables) — zero runtime dependencies beyond React and the router.
+              tables) - zero runtime dependencies beyond React and the router.
             </p>
           </div>
         </article>

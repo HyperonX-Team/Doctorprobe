@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe hardware build tutorial: full parts list (~$35-45), wiring diagram, assembly steps, first power-on, and troubleshooting."
     />
-    <title>Hardware build guide — Doctordrobe Docs</title>
+    <title>Hardware build guide - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -63,7 +64,7 @@
           <h1>Hardware build guide</h1>
           <p class="lede">
             How to buy the parts, wire them up, and get a working Doctordrobe device on
-            your desk — about an evening's work and $35–45 of parts. No soldering needed
+            your desk - about an evening's work and $35-45 of parts. No soldering needed
             on a breadboard.
           </p>
 
@@ -73,32 +74,32 @@
               <tr><th>#</th><th>Part</th><th>Qty</th><th>Why</th><th>Price</th></tr>
             </thead>
             <tbody>
-              <tr><td>1</td><td>ESP32 DevKit V1 (ESP-WROOM-32) or NodeMCU-32S</td><td>1</td><td>The brain; Wi-Fi + TLS</td><td>$5–12</td></tr>
-              <tr><td>2</td><td>Adafruit TCS34725 RGB colour sensor (or compatible)</td><td>1</td><td>Reads the saliva strip colour</td><td>$4–8</td></tr>
-              <tr><td>3</td><td>DHT22 (AM2302) temperature/humidity sensor</td><td>1</td><td>Ambient compensation for the assay</td><td>$3–6</td></tr>
+              <tr><td>1</td><td>ESP32 DevKit V1 (ESP-WROOM-32) or NodeMCU-32S</td><td>1</td><td>The brain; Wi-Fi + TLS</td><td>$5-12</td></tr>
+              <tr><td>2</td><td>Adafruit TCS34725 RGB colour sensor (or compatible)</td><td>1</td><td>Reads the saliva strip colour</td><td>$4-8</td></tr>
+              <tr><td>3</td><td>DHT22 (AM2302) temperature/humidity sensor</td><td>1</td><td>Ambient compensation for the assay</td><td>$3-6</td></tr>
               <tr><td>4</td><td>Tactile push button (momentary, NO)</td><td>1</td><td>Triggers a reading</td><td>$0.50</td></tr>
               <tr><td>5</td><td>LED (any colour) + 220 Ω resistor</td><td>1 + 1</td><td>Status feedback (success/fail)</td><td>$0.50</td></tr>
               <tr><td>6</td><td>Breadboard + jumper wires (M/F, M/M)</td><td>1 kit</td><td>Prototype wiring</td><td>$5</td></tr>
               <tr><td>7</td><td>Micro-USB cable (data, not charge-only!)</td><td>1</td><td>Power + flashing</td><td>$2</td></tr>
               <tr><td>8</td><td>USB wall adapter or power bank (5 V)</td><td>1</td><td>Off-computer power</td><td>$5</td></tr>
-              <tr><td>9</td><td>Saliva test strips (any brand, ~50 pack)</td><td>1</td><td>Sample medium</td><td>$5–15</td></tr>
-              <tr><td>10</td><td>3D-printed or plastic enclosure (optional)</td><td>1</td><td>Housing</td><td>$10–20</td></tr>
+              <tr><td>9</td><td>Saliva test strips (any brand, ~50 pack)</td><td>1</td><td>Sample medium</td><td>$5-15</td></tr>
+              <tr><td>10</td><td>3D-printed or plastic enclosure (optional)</td><td>1</td><td>Housing</td><td>$10-20</td></tr>
             </tbody>
           </table>
-          <p><strong>Budget total: ~$35–45.</strong> Cheapest viable: ESP32 + TCS34725 + button on a breadboard (~$15).</p>
+          <p><strong>Budget total: ~$35-45.</strong> Cheapest viable: ESP32 + TCS34725 + button on a breadboard (~$15).</p>
           <div class="callout note">
             <p class="callout-title">Alternatives</p>
             <p>
               Any I2C colour sensor with a library (e.g. APDS-9960) can replace the
-              TCS34725 — the firmware targets its API. DHT11 works for demos (less
+              TCS34725 - the firmware targets its API. DHT11 works for demos (less
               accurate). The ESP32's onboard blue LED on GPIO2 means you can skip part #5.
             </p>
           </div>
 
           <h2 id="tools">2. Tools</h2>
           <ul>
-            <li>Screwdriver (small) — only if you use the enclosure</li>
-            <li>Soldering iron + solder — only for permanent/perfboard assembly</li>
+            <li>Screwdriver (small) - only if you use the enclosure</li>
+            <li>Soldering iron + solder - only for permanent/perfboard assembly</li>
             <li>A computer with Arduino IDE 2.x or <code>arduino-cli</code></li>
             <li>Multimeter (optional, for continuity checks)</li>
           </ul>
@@ -137,7 +138,7 @@
           <div class="callout warning">
             <p class="callout-title">Two gotchas</p>
             <p>
-              <strong>GPIO0</strong> doubles as the flash-mode strapping pin — don't hold
+              <strong>GPIO0</strong> doubles as the flash-mode strapping pin - don't hold
               the button while flashing. If using a bare DHT22 (not the module), add a
               10 kΩ pull-up between DATA and 3V3.
             </p>
@@ -152,7 +153,7 @@
             <li><strong>Button.</strong> One leg to GPIO0, the other to GND.</li>
             <li><strong>LED.</strong> Anode to GPIO2 through the 220 Ω resistor; cathode to GND.</li>
             <li><strong>Visual check.</strong> Walk the wiring table line by line before applying power. Continuity mode catches swapped SDA/SCL.</li>
-            <li><strong>Power up.</strong> Connect USB — the LED should stay off until the button is pressed.</li>
+            <li><strong>Power up.</strong> Connect USB - the LED should stay off until the button is pressed.</li>
           </ol>
 
           <h2 id="power-on">5. First power-on test</h2>
@@ -173,7 +174,7 @@
             <li>Start the backend (<code>docker compose up --build</code> or local uvicorn).</li>
             <li>In the app, verify the Device ID matches <code>DEVICE_ID</code> in <code>config.h</code> (Settings page).</li>
             <li>Place a saliva strip under the TCS34725.</li>
-            <li>Press the button — the firmware POSTs to <code>/api/devices/reading</code>.</li>
+            <li>Press the button - the firmware POSTs to <code>/api/devices/reading</code>.</li>
             <li><strong>LED blinks 3×</strong> → accepted. App → <em>Checkup → Scan with Device</em>.</li>
             <li><strong>LED stays on 5 s</strong> → failure. Check backend logs, <code>BACKEND_HOST</code> reachability, Wi-Fi, and <code>X-API-Key</code> if enabled.</li>
           </ol>
@@ -189,7 +190,7 @@
               <tr><td>Wi-Fi never connects</td><td>Wrong SSID/pass; ESP32 cannot see 5 GHz networks</td></tr>
               <tr><td>LED stays on 5 s after press</td><td>Backend unreachable: host IP/port, firewall, <code>DEVICE_API_KEY</code> mismatch</td></tr>
               <tr><td>Button does nothing</td><td>Button legs swapped or not to GND; check GPIO0 with a multimeter</td></tr>
-              <tr><td>Reading identical every time</td><td>Normal — the analysis is deterministic per reading; check the serial log for fresh sensor values</td></tr>
+              <tr><td>Reading identical every time</td><td>Normal - the analysis is deterministic per reading; check the serial log for fresh sensor values</td></tr>
               <tr><td>DHT read fails (<code>isnan</code>)</td><td>Check DATA pin + pull-up; DHT22 needs ≥2 s between reads (firmware handles it)</td></tr>
             </tbody>
           </table>

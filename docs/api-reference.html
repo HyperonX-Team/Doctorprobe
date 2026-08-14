@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe API reference: all endpoints for auth, checkups, devices, trends, and calibration with payload examples."
     />
-    <title>API reference — Doctordrobe Docs</title>
+    <title>API reference - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -77,14 +78,14 @@
               <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
             </thead>
             <tbody>
-              <tr><td>POST</td><td><code>/api/auth/register</code></td><td>—</td><td><code>RegisterRequest</code></td><td><code>AuthResponse</code> (201)</td></tr>
-              <tr><td>POST</td><td><code>/api/auth/login</code></td><td>—</td><td><code>LoginRequest</code></td><td><code>AuthResponse</code></td></tr>
-              <tr><td>POST</td><td><code>/api/auth/logout</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
-              <tr><td>GET</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>UserResponse</code></td></tr>
+              <tr><td>POST</td><td><code>/api/auth/register</code></td><td>-</td><td><code>RegisterRequest</code></td><td><code>AuthResponse</code> (201)</td></tr>
+              <tr><td>POST</td><td><code>/api/auth/login</code></td><td>-</td><td><code>LoginRequest</code></td><td><code>AuthResponse</code></td></tr>
+              <tr><td>POST</td><td><code>/api/auth/logout</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>UserResponse</code></td></tr>
               <tr><td>PUT</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td><code>UserUpdate</code></td><td><code>UserResponse</code></td></tr>
-              <tr><td>DELETE</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>DELETE</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>{"detail"}</code></td></tr>
               <tr><td>POST</td><td><code>/api/auth/change-password</code></td><td><span class="badge blue">auth</span></td><td><code>ChangePasswordRequest</code></td><td><code>{"detail"}</code></td></tr>
-              <tr><td>GET</td><td><code>/api/auth/me/checkups</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupSummary[]</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me/checkups</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupSummary[]</code></td></tr>
             </tbody>
           </table>
           <pre><code>curl -X POST http://localhost:8000/api/auth/register \
@@ -117,11 +118,11 @@
               <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
             </thead>
             <tbody>
-              <tr><td>POST</td><td><code>/api/checkups</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupCreated</code> (201)</td></tr>
-              <tr><td>GET</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>CheckupResponse</code> (decrypted)</td></tr>
-              <tr><td>DELETE</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>{"detail"}</code></td></tr>
-              <tr><td>POST</td><td><code>/api/checkups/{id}/share</code></td><td><span class="badge blue">auth</span></td><td>—</td><td><code>ShareResponse</code></td></tr>
-              <tr><td>GET</td><td><code>/api/checkups/{id}/export</code></td><td><span class="badge blue">auth</span></td><td>—</td><td>PDF (application/pdf)</td></tr>
+              <tr><td>POST</td><td><code>/api/checkups</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupCreated</code> (201)</td></tr>
+              <tr><td>GET</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupResponse</code> (decrypted)</td></tr>
+              <tr><td>DELETE</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>POST</td><td><code>/api/checkups/{id}/share</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>ShareResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/checkups/{id}/export</code></td><td><span class="badge blue">auth</span></td><td>-</td><td>PDF (application/pdf)</td></tr>
             </tbody>
           </table>
           <ul>
@@ -138,10 +139,10 @@
             <tbody>
               <tr><td>POST</td><td><code>/api/devices/reading</code></td><td><span class="badge grey">device</span></td><td><code>DeviceReadingCreate</code></td><td><code>DeviceReadingResponse</code> (201)</td></tr>
               <tr><td>POST</td><td><code>/api/devices/readings</code></td><td><span class="badge grey">device</span></td><td><code>DeviceReadingsCreate</code> (burst)</td><td><code>DeviceReadingsResponse</code> (201)</td></tr>
-              <tr><td>GET</td><td><code>/api/devices/latest</code></td><td>—</td><td><code>?device_id=</code></td><td><code>DeviceReadingResponse</code></td></tr>
-              <tr><td>GET</td><td><code>/api/devices/status</code></td><td>—</td><td><code>?device_id=</code></td><td><code>{"connected", "last_seen"}</code></td></tr>
+              <tr><td>GET</td><td><code>/api/devices/latest</code></td><td>-</td><td><code>?device_id=</code></td><td><code>DeviceReadingResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/devices/status</code></td><td>-</td><td><code>?device_id=</code></td><td><code>{"connected", "last_seen"}</code></td></tr>
               <tr><td>POST</td><td><code>/api/devices/baseline</code></td><td><span class="badge grey">device</span></td><td><code>DeviceBaselineCreate</code> (CAL BLANK)</td><td><code>DeviceBaselineResponse</code></td></tr>
-              <tr><td>GET</td><td><code>/api/devices/baseline</code></td><td>—</td><td><code>?device_id=</code></td><td><code>DeviceBaselineResponse</code></td></tr>
+              <tr><td>GET</td><td><code>/api/devices/baseline</code></td><td>-</td><td><code>?device_id=</code></td><td><code>DeviceBaselineResponse</code></td></tr>
             </tbody>
           </table>
           <pre><code>curl -X POST http://localhost:8000/api/devices/reading \
@@ -156,7 +157,7 @@
               <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
             </thead>
             <tbody>
-              <tr><td>GET</td><td><code>/api/trends</code></td><td><span class="badge blue">auth</span></td><td><code>?window_days=</code> (1–365, default 30)</td><td>per-marker series, stats, alerts</td></tr>
+              <tr><td>GET</td><td><code>/api/trends</code></td><td><span class="badge blue">auth</span></td><td><code>?window_days=</code> (1-365, default 30)</td><td>per-marker series, stats, alerts</td></tr>
             </tbody>
           </table>
           <p>
@@ -173,10 +174,10 @@
             </thead>
             <tbody>
               <tr><td>POST</td><td><code>/api/calibration/samples</code></td><td><span class="badge grey">device</span></td><td><code>CalibrationSampleCreate</code></td><td><code>CalibrationSampleResponse</code> (201)</td></tr>
-              <tr><td>GET</td><td><code>/api/calibration/samples</code></td><td>—</td><td><code>?analyte=</code> · <code>?limit=</code></td><td><code>CalibrationSampleResponse[]</code></td></tr>
-              <tr><td>GET</td><td><code>/api/calibration/stats</code></td><td>—</td><td>—</td><td>per-analyte coverage + model status</td></tr>
-              <tr><td>GET</td><td><code>/api/calibration/export</code></td><td>—</td><td>—</td><td>trainer CSV (<code>real_training.csv</code>)</td></tr>
-              <tr><td>DELETE</td><td><code>/api/calibration/samples</code></td><td>—</td><td>—</td><td><code>{"detail"}</code></td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/samples</code></td><td>-</td><td><code>?analyte=</code> · <code>?limit=</code></td><td><code>CalibrationSampleResponse[]</code></td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/stats</code></td><td>-</td><td>-</td><td>per-analyte coverage + model status</td></tr>
+              <tr><td>GET</td><td><code>/api/calibration/export</code></td><td>-</td><td>-</td><td>trainer CSV (<code>real_training.csv</code>)</td></tr>
+              <tr><td>DELETE</td><td><code>/api/calibration/samples</code></td><td>-</td><td>-</td><td><code>{"detail"}</code></td></tr>
             </tbody>
           </table>
 

@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Doctordrobe FAQ — is it a medical device, how accurate is it, what happens to my data, do I need hardware?"
+      content="Doctordrobe FAQ - is it a medical device, how accurate is it, what happens to my data, do I need hardware?"
     />
-    <title>FAQ — Doctordrobe Docs</title>
+    <title>FAQ - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -81,7 +82,7 @@
           <h2 id="accurate">How accurate is it?</h2>
           <p>
             Out of the box: the SaliNet model is a Random Forest trained on simulated
-            Beer–Lambert strip chemistry, with held-out R² around 0.56–0.92 depending on
+            Beer-Lambert strip chemistry, with held-out R² around 0.56-0.92 depending on
             analyte. That measures the model against its own simulator, not against
             reality. The honest path to accuracy is the
             <a href="calibration.html">calibration workflow</a>: collect labeled samples
@@ -90,7 +91,7 @@
           <p>
             Accuracy also depends on capture quality. The system grades each reading
             (<a href="measurement-quality.html">good / fair / poor</a>) from burst
-            variance, light levels, and spectral residuals — a poor capture is flagged
+            variance, light levels, and spectral residuals - a poor capture is flagged
             with a retake recommendation rather than reported with false confidence.
           </p>
 
@@ -98,17 +99,17 @@
           <ul>
             <li>Reports are encrypted with Fernet before storage; list views only see a summary and risk label.</li>
             <li>Passwords are salted + hashed with PBKDF2; session tokens are stored as SHA-256 digests.</li>
-            <li>Sharing a checkup is always opt-in and awards tokens — nothing is shared by default.</li>
+            <li>Sharing a checkup is always opt-in and awards tokens - nothing is shared by default.</li>
             <li>You can export everything (Vault) or delete your account (which cascades to all checkups).</li>
           </ul>
 
           <h2 id="hardware-needed">Do I need to build the hardware?</h2>
           <p>
-            To take real readings, yes — the backend refuses to fabricate data, and
+            To take real readings, yes - the backend refuses to fabricate data, and
             there is no simulated mode. But you can run the full stack and explore the
             API with a manually posted reading (see
             <a href="getting-started.html#first-checkup">getting started</a>). The
-            hardware is ~$35–45 in parts and the build takes an evening
+            hardware is ~$35-45 in parts and the build takes an evening
             (<a href="hardware.html">build guide</a>).
           </p>
 
@@ -124,10 +125,10 @@
 
           <h2 id="why-rgb">Three RGB channels for five analytes?</h2>
           <p>
-            Good question — it's an ill-posed inverse problem. The answer is in
+            Good question - it's an ill-posed inverse problem. The answer is in
             <a href="science.html#ill-posed">the science page</a>: the system captures a
             burst of snapshots, deconvolves them together as one over-determined system,
-            regularizes toward a prior (SaliNet or Beer–Lambert), and reports a per-marker
+            regularizes toward a prior (SaliNet or Beer-Lambert), and reports a per-marker
             identifiability confidence so you know when a number was <em>not</em>
             resolvable.
           </p>
@@ -141,7 +142,7 @@
 
           <h2 id="reset">How do I recover a lost password?</h2>
           <p>
-            Password recovery isn't implemented yet — by design, because this is a
+            Password recovery isn't implemented yet - by design, because this is a
             self-hosted project. If you lose access, delete the account row (or database)
             and register again. This is a known gap for production use; see
             <a href="auth.html#roadmap">auth roadmap</a>.

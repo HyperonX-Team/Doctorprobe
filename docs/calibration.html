@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe calibration tutorial: make control standards, collect labeled samples with CAL mode, export, retrain SaliNet, and verify."
     />
-    <title>Calibration tutorial — Doctordrobe Docs</title>
+    <title>Calibration tutorial - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -60,7 +61,7 @@
           <a href="index.html">Home</a><span class="sep">/</span><span>Calibration tutorial</span>
         </div>
         <article>
-          <h1>Calibration tutorial — make SaliNet real</h1>
+          <h1>Calibration tutorial - make SaliNet real</h1>
           <p class="lede">
             SaliNet ships trained on <strong>simulated strip chemistry</strong>. This
             tutorial replaces that with <strong>real measurements</strong>: build control
@@ -73,7 +74,7 @@
             <p>
               The goal is a per-analyte model trained on samples from <em>your</em>
               device and <em>your</em> strips, labeled by standards you made. That is the
-              honest path to accuracy — and the only thing that makes the reported
+              honest path to accuracy - and the only thing that makes the reported
               numbers defensible.
             </p>
           </div>
@@ -81,7 +82,7 @@
           <h2 id="overview">The workflow</h2>
           <ol>
             <li>Build control standards with known concentrations.</li>
-            <li>Arm the firmware (<code>CAL &lt;analyte&gt; &lt;concentration&gt;</code>), put a strip under the sensor, press the button — the device averages 10 reads and POSTs one labeled sample.</li>
+            <li>Arm the firmware (<code>CAL &lt;analyte&gt; &lt;concentration&gt;</code>), put a strip under the sensor, press the button - the device averages 10 reads and POSTs one labeled sample.</li>
             <li>Repeat across levels until every analyte has ≥ 15 samples.</li>
             <li>Export the training CSV and run the trainer.</li>
             <li>Verify against a known control; clear the samples.</li>
@@ -97,11 +98,11 @@
               <tr><th>Analyte</th><th>Envelope</th><th>Standard recipe</th></tr>
             </thead>
             <tbody>
-              <tr><td>Glucose</td><td>0.05–50 mg/dL</td><td>Pure dextrose powder dissolved in distilled water (0.5 g in 1 L = 50 mg/dL; weigh on a 0.01 g scale). Use high-sensitivity glucose strips.</td></tr>
-              <tr><td>CRP</td><td>0.005–20 ng/mL</td><td>Commercial immunoassay control kits or lab-prepared standards — home chemistry is unreliable here; plan a lab session.</td></tr>
-              <tr><td>Cortisol</td><td>0.005–5 µg/dL</td><td>Commercial ELISA-type control kits or lab-prepared standards.</td></tr>
-              <tr><td>sIgA</td><td>0.5–200 mg/dL</td><td>Commercial IgA standards or lab-prepared dilutions.</td></tr>
-              <tr><td>pH</td><td>—</td><td><strong>Never calibrated.</strong> pH is a mixed-indicator ratio (closed-form channel ratio).</td></tr>
+              <tr><td>Glucose</td><td>0.05-50 mg/dL</td><td>Pure dextrose powder dissolved in distilled water (0.5 g in 1 L = 50 mg/dL; weigh on a 0.01 g scale). Use high-sensitivity glucose strips.</td></tr>
+              <tr><td>CRP</td><td>0.005-20 ng/mL</td><td>Commercial immunoassay control kits or lab-prepared standards - home chemistry is unreliable here; plan a lab session.</td></tr>
+              <tr><td>Cortisol</td><td>0.005-5 µg/dL</td><td>Commercial ELISA-type control kits or lab-prepared standards.</td></tr>
+              <tr><td>sIgA</td><td>0.5-200 mg/dL</td><td>Commercial IgA standards or lab-prepared dilutions.</td></tr>
+              <tr><td>pH</td><td>-</td><td><strong>Never calibrated.</strong> pH is a mixed-indicator ratio (closed-form channel ratio).</td></tr>
             </tbody>
           </table>
           <p>
@@ -133,11 +134,11 @@ python scripts/train_model.py</code></pre>
           <p>The trainer's data priority:</p>
           <ol>
             <li>
-              <strong>Real data</strong> — an analyte uses its real samples when it has
+              <strong>Real data</strong> - an analyte uses its real samples when it has
               ≥ 15 (the <code>MIN_REAL_SAMPLES</code> threshold, shown in the dashboard).
             </li>
             <li>
-              <strong>Synthetic fallback</strong> — analytes below the threshold keep the
+              <strong>Synthetic fallback</strong> - analytes below the threshold keep the
               simulated dataset so the model stays complete.
             </li>
           </ol>
@@ -166,12 +167,12 @@ python scripts/train_model.py</code></pre>
           </p>
           <ul>
             <li>
-              <strong>Coverage</strong> — per-analyte sample count vs the 15-sample
+              <strong>Coverage</strong> - per-analyte sample count vs the 15-sample
               threshold, concentration span, and a "Ready to train / Keep collecting"
               badge.
             </li>
             <li>
-              <strong>Model status</strong> — version, training timestamp, and per-analyte
+              <strong>Model status</strong> - version, training timestamp, and per-analyte
               data source (real vs synthetic) straight from the manifest.
             </li>
           </ul>
@@ -180,7 +181,7 @@ python scripts/train_model.py</code></pre>
             <p class="callout-title">Why one forest per analyte?</p>
             <p>
               Control samples are labeled per analyte, so per-analyte forests fit the
-              data collection naturally — and each forest's feature importances show
+              data collection naturally - and each forest's feature importances show
               exactly which sensor channel drives that analyte. See
               <a href="science.html#salinet">analysis science</a>.
             </p>

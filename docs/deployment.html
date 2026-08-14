@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe deployment: Docker Compose stack, Nginx proxy, TLS termination, secrets management, PostgreSQL, and the production checklist."
     />
-    <title>Deployment — Doctordrobe Docs</title>
+    <title>Deployment - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -63,7 +64,7 @@
           <h1>Deployment</h1>
           <p class="lede">
             The stack is designed to be run with Docker Compose today and graduated to a
-            managed setup tomorrow — same images, env-driven configuration throughout.
+            managed setup tomorrow - same images, env-driven configuration throughout.
           </p>
 
           <h2 id="compose">Docker Compose</h2>
@@ -100,7 +101,7 @@ docker compose -f infra/docker-compose.yml up --build</code></pre>
 
           <h2 id="secrets">Secrets</h2>
           <ul>
-            <li>Inject <code>FERNET_KEY</code> and <code>DEVICE_API_KEY</code> via the orchestrator's secret store (Kubernetes Secrets, Docker secrets, Vault) — never bake them into images.</li>
+            <li>Inject <code>FERNET_KEY</code> and <code>DEVICE_API_KEY</code> via the orchestrator's secret store (Kubernetes Secrets, Docker secrets, Vault) - never bake them into images.</li>
             <li>Never commit <code>.env</code> or the firmware's <code>secrets.h</code>.</li>
             <li>Generate <code>FERNET_KEY</code> with <code>python -c "import secrets; print(secrets.token_urlsafe(48))"</code>.</li>
           </ul>
@@ -122,17 +123,17 @@ docker compose -f infra/docker-compose.yml up --build</code></pre>
           <h2 id="scale">Scaling &amp; hardening notes</h2>
           <ul>
             <li>
-              <strong>Multi-instance backend</strong> — the login rate limiter is
+              <strong>Multi-instance backend</strong> - the login rate limiter is
               per-process; move it to Redis before scaling horizontally.
             </li>
             <li>
-              <strong>Device fleet</strong> — today devices share one
+              <strong>Device fleet</strong> - today devices share one
               <code>DEVICE_API_KEY</code>; per-device keys with rotation and a device
               registry are the documented next step (the dependency seam in
               <code>app/core/security.py</code> is where they plug in).
             </li>
             <li>
-              <strong>Key rotation</strong> — rotating <code>FERNET_KEY</code> requires
+              <strong>Key rotation</strong> - rotating <code>FERNET_KEY</code> requires
               re-encrypting stored reports; plan a migration job or use a KMS.
             </li>
           </ul>

@@ -7,13 +7,14 @@
       name="description"
       content="Get Doctordrobe running in minutes: Docker Compose or local dev, create an account, and run your first checkup."
     />
-    <title>Getting started — Doctordrobe Docs</title>
+    <title>Getting started - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -63,7 +64,7 @@
           <h1>Getting started</h1>
           <p class="lede">
             Run the whole stack on your machine, create an account, and take your first
-            checkup — no hardware required for the software path.
+            checkup - no hardware required for the software path.
           </p>
 
           <h2 id="prerequisites">Prerequisites</h2>
@@ -79,7 +80,7 @@
             </tbody>
           </table>
 
-          <h2 id="docker">Option A — Docker Compose (fastest)</h2>
+          <h2 id="docker">Option A - Docker Compose (fastest)</h2>
           <p>
             The Compose stack starts PostgreSQL, runs Alembic migrations automatically,
             and serves the SPA through Nginx:
@@ -92,7 +93,7 @@ docker compose -f infra/docker-compose.yml up --build</code></pre>
             <li>Health checks: <code>http://localhost/health</code> and <code>http://localhost:8000/health</code></li>
           </ul>
 
-          <h2 id="local">Option B — local development</h2>
+          <h2 id="local">Option B - local development</h2>
           <h3>Backend</h3>
           <pre><code>cd backend
 python -m venv .venv
@@ -121,7 +122,7 @@ npm run dev       # http://localhost:5173</code></pre>
 
           <h2 id="first-checkup">Run your first checkup</h2>
           <p>
-            Every checkup is derived from a <strong>real device reading</strong> — there
+            Every checkup is derived from a <strong>real device reading</strong> - there
             is no simulated mode. With no physical device yet, use the API to post a
             reading, then create the checkup from the UI:
           </p>
@@ -157,9 +158,9 @@ curl -X POST http://localhost:8000/api/checkups \
 
           <h2 id="next">What next?</h2>
           <ul>
-            <li><a href="hardware.html">Build the physical device</a> — full BOM and wiring.</li>
-            <li><a href="calibration.html">Calibrate the sensor model</a> — replace simulated data with real samples.</li>
-            <li><a href="api-reference.html">Browse the API reference</a> — every endpoint.</li>
+            <li><a href="hardware.html">Build the physical device</a> - full BOM and wiring.</li>
+            <li><a href="calibration.html">Calibrate the sensor model</a> - replace simulated data with real samples.</li>
+            <li><a href="api-reference.html">Browse the API reference</a> - every endpoint.</li>
           </ul>
         </article>
 

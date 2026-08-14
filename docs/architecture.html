@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe architecture: ESP32 device, FastAPI backend, React SPA, database, and how a checkup flows through the stack."
     />
-    <title>Architecture — Doctordrobe Docs</title>
+    <title>Architecture - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -62,7 +63,7 @@
         <article>
           <h1>Architecture</h1>
           <p class="lede">
-            Three independent layers — device, API, and browser — joined by HTTP, with
+            Three independent layers - device, API, and browser - joined by HTTP, with
             every biomarker report encrypted at rest.
           </p>
 
@@ -166,7 +167,7 @@
             </li>
             <li>
               <strong>Browsers</strong> authenticate with opaque bearer tokens issued by
-              <code>/api/auth</code>. The owning user is always derived from the token —
+              <code>/api/auth</code>. The owning user is always derived from the token -
               endpoints never accept a client-supplied user id.
             </li>
           </ul>

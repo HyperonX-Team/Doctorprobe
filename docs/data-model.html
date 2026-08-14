@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe data model: users, sessions, checkups, device readings, calibration samples, baselines, and Alembic migrations."
     />
-    <title>Data model — Doctordrobe Docs</title>
+    <title>Data model - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -63,7 +64,7 @@
           <h1>Data model</h1>
           <p class="lede">
             Six tables under SQLAlchemy 2.0 (async), versioned by Alembic. The crown
-            jewel — the full biomarker report — is stored encrypted; only a plain
+            jewel - the full biomarker report - is stored encrypted; only a plain
             summary, risk label, and quality grade are readable for list views.
           </p>
 
@@ -99,7 +100,7 @@
               <tr><th>Parent</th><th>Child</th><th>On delete</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>users</code></td><td><code>sessions</code>, <code>checkups</code></td><td>cascade — deleting an account removes everything</td></tr>
+              <tr><td><code>users</code></td><td><code>sessions</code>, <code>checkups</code></td><td>cascade - deleting an account removes everything</td></tr>
               <tr><td><code>checkups</code></td><td><code>share_events</code></td><td>cascade; the unique <code>checkup_id</code> makes sharing idempotent</td></tr>
             </tbody>
           </table>
@@ -108,7 +109,7 @@
           <p>
             <code>checkups.encrypted_data</code> holds the full report JSON encrypted
             with Fernet (AES-128-CBC + HMAC). The key is derived with SHA-256 from
-            <code>FERNET_KEY</code> — so a single secret protects every report, and the
+            <code>FERNET_KEY</code> - so a single secret protects every report, and the
             columns that stay plain (summary, risk, grade) are deliberately the ones
             that leak nothing medically sensitive.
           </p>

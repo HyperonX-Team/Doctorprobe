@@ -7,13 +7,14 @@
       name="description"
       content="Glossary of Doctordrobe terms: Beer-Lambert, SaliNet, NNLS, Fernet, burst, biomarker, identifiability, and more."
     />
-    <title>Glossary — Doctordrobe Docs</title>
+    <title>Glossary - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -69,19 +70,19 @@
           <h2 id="science">Chemistry &amp; analysis</h2>
           <dl class="kv">
             <dt>Analyte</dt>
-            <dd>A substance measured by the test — here glucose, CRP, cortisol, pH, and secretory IgA.</dd>
+            <dd>A substance measured by the test - here glucose, CRP, cortisol, pH, and secretory IgA.</dd>
             <dt>Biomarker</dt>
             <dd>An analyte reported with a value, unit, reference range, and state (low/normal/high).</dd>
-            <dt>Beer–Lambert law</dt>
+            <dt>Beer-Lambert law</dt>
             <dd>Absorbance is proportional to concentration: A = -log10(R/R₀). The physics behind strip colorimetry.</dd>
             <dt>Chromogen</dt>
             <dd>The coloured reaction product a reagent pad develops; its intensity encodes concentration.</dd>
             <dt>Reference range</dt>
             <dd>The literature-plausible normal interval used to classify a value as low/normal/high.</dd>
             <dt>Identifiability</dt>
-            <dd>How confidently an analyte's concentration could be separated from the other channels. Reported as a 0–1 <em>confidence</em>.</dd>
+            <dd>How confidently an analyte's concentration could be separated from the other channels. Reported as a 0-1 <em>confidence</em>.</dd>
             <dt>NNLS</dt>
-            <dd>Non-negative least squares — the solver finds concentrations ≥ 0 that best fit the measured absorbances.</dd>
+            <dd>Non-negative least squares - the solver finds concentrations ≥ 0 that best fit the measured absorbances.</dd>
             <dt>Tikhonov prior</dt>
             <dd>A regularization term that steadies ill-conditioned directions toward a sensible estimate (SaliNet's prediction).</dd>
             <dt>Condition number</dt>
@@ -107,7 +108,7 @@
             <dt>Quality grade</dt>
             <dd>good / fair / poor verdict on a capture, from burst variance, light levels, and solver conditioning.</dd>
             <dt>Prior source</dt>
-            <dd>Whether the solver's prior came from SaliNet (<code>salinet</code>) or the closed-form Beer–Lambert fallback (<code>beer-lambert</code>).</dd>
+            <dd>Whether the solver's prior came from SaliNet (<code>salinet</code>) or the closed-form Beer-Lambert fallback (<code>beer-lambert</code>).</dd>
           </dl>
 
           <h2 id="ml">Machine learning</h2>
@@ -115,11 +116,11 @@
             <dt>SaliNet</dt>
             <dd>The sensor model: four per-analyte Random Forests that invert RGB+temp+humidity into concentrations.</dd>
             <dt>Forward model</dt>
-            <dd>The simulator (Beer–Lambert + pad cross-talk + noise) that generates synthetic training data.</dd>
+            <dd>The simulator (Beer-Lambert + pad cross-talk + noise) that generates synthetic training data.</dd>
             <dt>Calibration sample</dt>
             <dd>A labeled capture from a control standard with known concentration, used to retrain SaliNet on reality.</dd>
             <dt>Manifest</dt>
-            <dd><code>salinet.json</code> — records model version, training time, per-analyte source, and R²/MAE.</dd>
+            <dd><code>salinet.json</code> - records model version, training time, per-analyte source, and R²/MAE.</dd>
             <dt>Provenance</dt>
             <dd>Per-analyte record of whether training data was <code>real</code> or <code>synthetic</code> and how many samples.</dd>
           </dl>

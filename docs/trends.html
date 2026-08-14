@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe trends guide: longitudinal per-marker series, deterministic alerts, the /api/trends payload, and the charts page."
     />
-    <title>Trends &amp; alerts — Doctordrobe Docs</title>
+    <title>Trends &amp; alerts - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -64,7 +65,7 @@
           <p class="lede">
             A single reading is a snapshot; a sequence of checkups is a signal. Trends
             turns the time series you're already collecting into something you can act
-            on — with explainable, deterministic alerts.
+            on - with explainable, deterministic alerts.
           </p>
 
           <h2 id="why">Why longitudinal matters</h2>
@@ -76,7 +77,7 @@
           </p>
 
           <h2 id="api">The API</h2>
-          <p><code>GET /api/trends?window_days=30</code> (auth required, 1–365 days):</p>
+          <p><code>GET /api/trends?window_days=30</code> (auth required, 1-365 days):</p>
           <pre><code>{
   "window_days": 30,
   "checkup_count": 12,
@@ -99,12 +100,12 @@
 }</code></pre>
           <p>
             The service decrypts the user's own checkups server-side and returns only
-            aggregates — never encrypted payloads. Series are oldest → newest, so the UI
+            aggregates - never encrypted payloads. Series are oldest → newest, so the UI
             can draw them directly.
           </p>
 
           <h2 id="alerts">The alert rules</h2>
-          <p>All alerts are deterministic and conservative — a heads-up to look closer, never a diagnosis:</p>
+          <p>All alerts are deterministic and conservative - a heads-up to look closer, never a diagnosis:</p>
           <table>
             <thead>
               <tr><th>Type</th><th>Rule</th><th>Severity</th></tr>
@@ -125,19 +126,19 @@
           <h2 id="ui">The Trends page</h2>
           <ul>
             <li>
-              <strong>Window switcher</strong> — 30 / 90 / 365 days; the charts refetch
+              <strong>Window switcher</strong> - 30 / 90 / 365 days; the charts refetch
               per window.
             </li>
             <li>
-              <strong>Per-marker SVG line charts</strong> — dependency-free, with the
+              <strong>Per-marker SVG line charts</strong> - dependency-free, with the
               reference range drawn as a shaded band and points coloured by state
               (low / normal / high).
             </li>
             <li>
-              <strong>Stats line</strong> — latest, mean, and the state chips per point.
+              <strong>Stats line</strong> - latest, mean, and the state chips per point.
             </li>
             <li>
-              <strong>Alert cards</strong> — the explainable message for each fired rule.
+              <strong>Alert cards</strong> - the explainable message for each fired rule.
             </li>
           </ul>
 

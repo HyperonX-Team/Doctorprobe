@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe measurement quality: how the system grades captures good/fair/poor from burst variance, light levels, and spectral residuals."
     />
-    <title>Measurement quality — Doctordrobe Docs</title>
+    <title>Measurement quality - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -64,7 +65,7 @@
           <p class="lede">
             A ~$4 sensor held by a human reads a strip under varying light. Sometimes the
             capture is garbage. The system grades every reading and tells the user when
-            to retake — instead of printing a confident-looking number from bad data.
+            to retake - instead of printing a confident-looking number from bad data.
           </p>
 
           <h2 id="grades">The grades</h2>
@@ -75,7 +76,7 @@
             <tbody>
               <tr><td><span class="badge green">good</span></td><td>Stable burst, healthy light levels, well-conditioned fit.</td><td>None</td></tr>
               <tr><td><span class="badge amber">fair</span></td><td>Usable, with caveats (e.g. weak burst, elevated residual).</td><td><code>review</code></td></tr>
-              <tr><td><span class="badge red">poor</span></td><td>Not trustworthy — retake with a fresh strip.</td><td><code>retake_reading</code></td></tr>
+              <tr><td><span class="badge red">poor</span></td><td>Not trustworthy - retake with a fresh strip.</td><td><code>retake_reading</code></td></tr>
             </tbody>
           </table>
 
@@ -106,18 +107,18 @@
           <h2 id="surface">How it surfaces</h2>
           <ul>
             <li>
-              <strong>API</strong> — each checkup carries a plain <code>quality_grade</code>
+              <strong>API</strong> - each checkup carries a plain <code>quality_grade</code>
               column for list views, and the decrypted report embeds the full
               <code>quality</code> object: <code>grade</code>, human-readable
               <code>reasons[]</code>, and <code>recommended_action</code>.
             </li>
             <li>
-              <strong>Report page</strong> — a banner for <code>fair</code>/<code>poor</code>
+              <strong>Report page</strong> - a banner for <code>fair</code>/<code>poor</code>
               readings lists the reasons; <code>poor</code> shows
               <em>"Recommended action: retake the reading"</em>.
             </li>
             <li>
-              <strong>PDF export</strong> — the quality verdict and reasons are printed in
+              <strong>PDF export</strong> - the quality verdict and reasons are printed in
               the clinician report.
             </li>
           </ul>
@@ -143,7 +144,7 @@
             <p>
               Hold the strip flat and steady, keep ambient light consistent, use fresh
               strips, and take the reading within the reaction window. A blank-pad
-              baseline (CAL BLANK) further stabilizes the device's optics — see
+              baseline (CAL BLANK) further stabilizes the device's optics - see
               <a href="firmware.html">firmware</a>.
             </p>
           </div>

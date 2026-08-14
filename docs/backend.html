@@ -7,13 +7,14 @@
       name="description"
       content="Doctordrobe backend overview: FastAPI app structure, service layer, and every configuration variable."
     />
-    <title>Backend overview — Doctordrobe Docs</title>
+    <title>Backend overview - Doctordrobe Docs</title>
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Toggle navigation">☰</button>
-      <a class="logo" href="index.html"><span class="mark">D</span> Doctordrobe Docs</a>
+      <a class="logo" href="index.html"><img class="logo-icon" src="favicon.svg" alt="" /> Doctordrobe Docs</a>
       <div class="search">
         <input id="docs-search" type="search" placeholder="Filter documentation…" aria-label="Filter documentation" />
       </div>
@@ -70,7 +71,7 @@
           <h2 id="stack">Stack</h2>
           <ul>
             <li>Python 3.11 · FastAPI 0.111 · Pydantic v2 + <code>pydantic-settings</code></li>
-            <li>SQLAlchemy 2.0 async — asyncpg (PostgreSQL) / aiosqlite (dev)</li>
+            <li>SQLAlchemy 2.0 async - asyncpg (PostgreSQL) / aiosqlite (dev)</li>
             <li>Alembic migrations · Fernet report encryption · structured JSON logs</li>
             <li>scikit-learn + joblib for the SaliNet model artifact</li>
           </ul>
@@ -134,7 +135,7 @@
 
           <h2 id="testing">Testing</h2>
           <p>
-            72 pytest tests run against an in-memory async SQLite database — no external
+            72 pytest tests run against an in-memory async SQLite database - no external
             services required:
           </p>
           <pre><code>cd backend
