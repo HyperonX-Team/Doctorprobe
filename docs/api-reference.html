@@ -85,7 +85,8 @@
               <tr><td>PUT</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td><code>UserUpdate</code></td><td><code>UserResponse</code></td></tr>
               <tr><td>DELETE</td><td><code>/api/auth/me</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>{"detail"}</code></td></tr>
               <tr><td>POST</td><td><code>/api/auth/change-password</code></td><td><span class="badge blue">auth</span></td><td><code>ChangePasswordRequest</code></td><td><code>{"detail"}</code></td></tr>
-              <tr><td>GET</td><td><code>/api/auth/me/checkups</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupSummary[]</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me/checkups</code></td><td><span class="badge blue">auth</span></td><td><code>?limit=&offset=</code></td><td><code>CheckupSummary[]</code> + <code>X-Total-Count</code></td></tr>
+              <tr><td>GET</td><td><code>/api/auth/me/export</code></td><td><span class="badge blue">auth</span></td><td>-</td><td>JSON download of all personal data</td></tr>
             </tbody>
           </table>
           <pre><code>curl -X POST http://localhost:8000/api/auth/register \
@@ -97,10 +98,10 @@
   "token": "Qw9pV...opaque-bearer-token...",
   "user": {
     "id": "274078c2-c56b-44c6-8785-6c1bb9ec472c",
-    "email": "you@example.com",
-    "age": 34, "sex": "female", "height_cm": 165.0, "weight_kg": 62.0,
+    "email": "you@example.com",            "age": 34, "sex": "female", "height_cm": 165.0, "weight_kg": 62.0,
     "activity_level": "moderate", "share_data": false, "token_balance": 0,
-    "device_id": "doctordrobe_demo_001", "created_at": "2026-07-31T20:20:58Z"
+    "device_id": "doctordrobe_demo_001", "reference_ranges": null,
+    "created_at": "2026-07-31T20:20:58Z"
   }
 }</code></pre>
           <div class="callout note">
@@ -120,6 +121,7 @@
             <tbody>
               <tr><td>POST</td><td><code>/api/checkups</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupCreated</code> (201)</td></tr>
               <tr><td>GET</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>CheckupResponse</code> (decrypted)</td></tr>
+              <tr><td>PUT</td><td><code>/api/checkups/{id}/note</code></td><td><span class="badge blue">auth</span></td><td><code>NoteUpdate</code></td><td><code>CheckupResponse</code> (note saved)</td></tr>
               <tr><td>DELETE</td><td><code>/api/checkups/{id}</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>{"detail"}</code></td></tr>
               <tr><td>POST</td><td><code>/api/checkups/{id}/share</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>ShareResponse</code></td></tr>
               <tr><td>GET</td><td><code>/api/checkups/{id}/export</code></td><td><span class="badge blue">auth</span></td><td>-</td><td>PDF (application/pdf)</td></tr>
@@ -129,6 +131,7 @@
             <li><code>POST /api/checkups</code> analyses the user's latest device burst; returns <strong>409</strong> when no reading exists.</li>
             <li>Ownership is enforced: another user's checkup returns <strong>403</strong>.</li>
             <li>Sharing awards <code>TOKEN_REWARD</code> once; a second share returns <strong>409</strong>.</li>
+            <li><code>PUT /{id}/note</code> stores a free-text note inside the encrypted report payload (pass <code>{"note": ""}</code> to clear).</li>
           </ul>
 
           <h2 id="devices">Devices</h2>
@@ -158,6 +161,7 @@
             </thead>
             <tbody>
               <tr><td>GET</td><td><code>/api/trends</code></td><td><span class="badge blue">auth</span></td><td><code>?window_days=</code> (1-365, default 30)</td><td>per-marker series, stats, alerts</td></tr>
+              <tr><td>GET</td><td><code>/api/trends/export</code></td><td><span class="badge blue">auth</span></td><td><code>?window_days=</code></td><td>series as CSV</td></tr>
             </tbody>
           </table>
           <p>
@@ -165,6 +169,40 @@
             <code>markers</code> map keyed by analyte with <code>points</code>
             (oldest → newest), <code>stats</code> (mean/std/min/max/latest), and
             <code>alerts</code>. See <a href="trends.html">Trends &amp; alerts</a>.
+          </p>
+
+          <h2 id="community">Community Insights</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>GET</td><td><code>/api/shares/insights</code></td><td><span class="badge blue">auth</span></td><td>-</td><td>cohort aggregates + "you vs similar profiles"</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Aggregates <strong>shared</strong> checkups of <em>other</em> users into
+            per-marker means, standard deviations and percentiles. Only server-side
+            statistics are returned — raw community rows never leave the server.
+            Comparisons are reported once the cohort has at least
+            <code>min_cohort</code> (3) shared checkups.
+          </p>
+
+          <h2 id="notifications">Notifications</h2>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Auth</th><th>Body / Query</th><th>Returns</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>GET</td><td><code>/api/notifications</code></td><td><span class="badge blue">auth</span></td><td>-</td><td><code>NotificationsResponse</code> (items + unread)</td></tr>
+              <tr><td>POST</td><td><code>/api/notifications/read</code></td><td><span class="badge blue">auth</span></td><td>-</td><td>refreshed list, all marked read</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Notifications are generated deterministically from the user's own data
+            (poor quality, trend alerts, reminders, rewards) and deduplicated per
+            user, so polling is idempotent. Weekly reminders are computed lazily on
+            read — no background scheduler required.
           </p>
 
           <h2 id="calibration">Calibration</h2>

@@ -21,6 +21,7 @@ const mockUser: User = {
   share_data: false,
   token_balance: 0,
   device_id: 'doctordrobe_demo_001',
+  reference_ranges: null,
   created_at: '2026-07-31T10:00:00Z',
 };
 

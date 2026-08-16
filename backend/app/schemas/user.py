@@ -40,6 +40,7 @@ class UserUpdate(BaseModel):
     activity_level: ActivityLevel | None = None
     share_data: bool | None = None
     device_id: str | None = Field(default=None, min_length=1, max_length=64)
+    reference_ranges: dict[str, dict[str, float]] | None = None
 
 
 class UserResponse(UserBase):
@@ -50,4 +51,5 @@ class UserResponse(UserBase):
     id: uuid.UUID
     email: EmailStr | None = None
     token_balance: int
+    reference_ranges: dict[str, dict[str, float]] | None = None
     created_at: datetime

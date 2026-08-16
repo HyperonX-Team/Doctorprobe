@@ -46,8 +46,10 @@ export default function Checkup() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">New checkup</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          New checkup
+        </h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Place a fresh saliva strip under the sensor on your Doctordrobe device and
           press its button, then scan below. Reports are derived from the physical
           reading — there is no simulated mode.
@@ -65,17 +67,17 @@ export default function Checkup() {
           type="button"
           onClick={handleScan}
           data-testid="checkup-scan"
-          className="w-full rounded-xl border border-slate-200 bg-white px-5 py-6 text-left text-sm font-semibold text-slate-800 shadow hover:bg-slate-50"
+          className="w-full rounded-xl border border-slate-200 bg-white px-5 py-6 text-left text-sm font-semibold text-slate-800 shadow hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
         >
           Scan with Device
-          <span className="mt-1 block text-xs font-normal text-slate-500">
+          <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
             Uses the latest reading from your ESP32 device.
           </span>
         </button>
       )}
 
       {phase.kind === 'creating' && (
-        <div className="flex justify-center rounded-xl border border-slate-200 bg-white p-8">
+        <div className="flex justify-center rounded-xl border border-slate-200 bg-white p-8 dark:border-slate-700 dark:bg-slate-900">
           <CheckupProgress durationMs={4000} />
         </div>
       )}
@@ -84,7 +86,7 @@ export default function Checkup() {
         <div
           role="alert"
           data-testid="checkup-error"
-          className="rounded-xl border border-rose-200 bg-rose-50 p-5"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950"
         >
           <p className="text-sm font-semibold text-rose-800">Could not run checkup</p>
           <p className="mt-1 text-sm text-rose-700">{phase.message}</p>

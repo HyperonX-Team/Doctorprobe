@@ -25,9 +25,11 @@ from app.schemas.checkup import (
     CheckupCreate,
     CheckupCreateResponse,
     CheckupResponse,
+    NoteUpdate,
     ShareResponse,
 )
 from app.services.export import build_clinician_pdf
+from app.services.notifications import generate_for_checkup, generate_for_share
 from app.services.report import ReportService
 from app.utils import crypto
 
@@ -70,6 +72,7 @@ async def create_checkup(
     """
     try:
         checkup = await ReportService.create_checkup(db, current)
+        await generate_for_checkup(db, current, checkup)
         await db.commit()
         await db.refresh(checkup)
     except HTTPException:
@@ -113,6 +116,7 @@ async def get_checkup(
         biomarkers=report["biomarkers"],
         analysis=report.get("analysis"),
         quality=report.get("quality"),
+        note=report.get("note"),
         created_at=checkup.created_at,
         is_shared=checkup.is_shared,
     )
@@ -205,9 +209,55 @@ async def share_checkup(
             detail="Could not share checkup",
         )
 
+    await generate_for_share(db, current, checkup)
+    await db.commit()
+
     return ShareResponse(
         checkup_id=checkup.id,
         tokens_awarded=settings.TOKEN_REWARD,
         new_balance=current.token_balance,
         is_shared=True,
+    )
+
+
+@router.put("/{checkup_id}/note", response_model=CheckupResponse)
+async def update_checkup_note(
+    checkup_id: uuid.UUID,
+    payload: NoteUpdate,
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> CheckupResponse:
+    """Set or clear the user's note on a checkup.
+
+    The note is stored inside the encrypted report payload, so it is
+    protected at rest exactly like the biomarker data itself.
+    """
+    checkup = await _get_checkup_or_404(db, checkup_id)
+    _assert_ownership(checkup, current)
+
+    report = crypto.decrypt_json(checkup.encrypted_data)
+    report["note"] = payload.note.strip() if payload.note else None
+    checkup.encrypted_data = crypto.encrypt_json(report)
+    try:
+        await db.commit()
+        await db.refresh(checkup)
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not save the note",
+        )
+
+    return CheckupResponse(
+        id=checkup.id,
+        user_id=checkup.user_id,
+        summary=checkup.summary,
+        overall_risk=report["overall_risk"],
+        text_summary=report["text_summary"],
+        biomarkers=report["biomarkers"],
+        analysis=report.get("analysis"),
+        quality=report.get("quality"),
+        note=report.get("note"),
+        created_at=checkup.created_at,
+        is_shared=checkup.is_shared,
     )

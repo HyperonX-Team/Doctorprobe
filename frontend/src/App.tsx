@@ -15,6 +15,7 @@ import Home from './pages/Home';
 import Checkup from './pages/Checkup';
 import Report from './pages/Report';
 import History from './pages/History';
+import Community from './pages/Community';
 import Vault from './pages/Vault';
 import Settings from './pages/Settings';
 import Calibration from './pages/Calibration';
@@ -77,6 +78,7 @@ const router = createBrowserRouter([
           { path: 'checkup', element: <Checkup /> },
           { path: 'report/:checkupId', element: <Report /> },
           { path: 'history', element: <History /> },
+          { path: 'community', element: <Community /> },
           { path: 'vault', element: <Vault /> },
           { path: 'calibration', element: <Calibration /> },
           { path: 'settings', element: <Settings /> },

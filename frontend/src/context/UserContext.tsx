@@ -15,7 +15,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, setAuthToken } from '../api/client';
+import { api, setAuthToken, UNAUTHORIZED_EVENT } from '../api/client';
 import { ApiError } from '../api/client';
 import type { User } from '../types';
 
@@ -74,6 +74,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     void api.logout().catch(() => undefined);
     setAuthToken(null);
     setUser(null);
+  }, []);
+
+  // A 401 on an authenticated request means the session is gone
+  // (expired, revoked by a password change, account deleted). Sign out
+  // immediately instead of leaving stale errors on every page.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setAuthToken(null);
+      setUser(null);
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
   const value = useMemo<UserContextValue>(

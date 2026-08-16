@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { useUser } from '../hooks/useUser';
+import { useToast } from '../components/ui/Toast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import type { MarkerTrend, TrendsResponse } from '../types';
 import { formatDate, formatNumber, stateBadgeClasses } from '../utils/formatters';
@@ -23,6 +24,8 @@ const WINDOWS = [
   { days: 90, label: '90 days' },
   { days: 365, label: '1 year' },
 ];
+
+const WINDOW_KEY = 'doctordrobe_trends_window';
 
 const WIDTH = 640;
 const HEIGHT = 180;
@@ -134,11 +137,13 @@ function MarkerCard({ marker }: { marker: MarkerTrend }) {
 
   return (
     <section
-      className="rounded-xl border border-slate-200 bg-white p-5"
+      className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
       data-testid={`trend-marker-${marker.key}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold text-slate-800">{marker.name}</h2>
+        <h2 className="font-semibold text-slate-800 dark:text-slate-100">
+          {marker.name}
+        </h2>
         {marker.stats && (
           <span className="text-xs text-slate-500">
             latest {formatNumber(marker.stats.latest)} {marker.unit} · mean{' '}
@@ -148,7 +153,9 @@ function MarkerCard({ marker }: { marker: MarkerTrend }) {
       </div>
 
       {!hasData && (
-        <p className="mt-3 text-sm text-slate-400">No checkups in this window yet.</p>
+        <p className="mt-3 text-sm text-slate-400 dark:text-slate-500">
+          No checkups in this window yet.
+        </p>
       )}
 
       {hasData && (
@@ -192,10 +199,42 @@ function MarkerCard({ marker }: { marker: MarkerTrend }) {
   );
 }
 
+function storedWindow(): number {
+  const raw = Number(localStorage.getItem(WINDOW_KEY));
+  return WINDOWS.some((window) => window.days === raw) ? raw : 30;
+}
+
 export default function Trends() {
   const { user } = useUser();
-  const [windowDays, setWindowDays] = useState(30);
+  const toast = useToast();
+  const [windowDays, setWindowDays] = useState(storedWindow);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [exporting, setExporting] = useState(false);
+
+  const handleWindowChange = (days: number) => {
+    localStorage.setItem(WINDOW_KEY, String(days));
+    setWindowDays(days);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await api.exportTrends(windowDays);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `doctordrobe-trends-${windowDays}d.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.show('Trends exported as CSV', 'success');
+    } catch (err) {
+      toast.show(getErrorMessage(err), 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -219,27 +258,40 @@ export default function Trends() {
     <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Trends</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Trends</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             How your markers move over time — built from your checkups.
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
-          {WINDOWS.map((window) => (
-            <button
-              key={window.days}
-              type="button"
-              onClick={() => setWindowDays(window.days)}
-              data-testid={`trends-window-${window.days}`}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
-                windowDays === window.days
-                  ? 'bg-brand-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {window.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={
+              exporting || state.kind !== 'ready' || state.trends.checkup_count === 0
+            }
+            data-testid="trends-export"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </button>
+          <div className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+            {WINDOWS.map((window) => (
+              <button
+                key={window.days}
+                type="button"
+                onClick={() => handleWindowChange(window.days)}
+                data-testid={`trends-window-${window.days}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
+                  windowDays === window.days
+                    ? 'bg-brand-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                }`}
+              >
+                {window.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -267,21 +319,23 @@ export default function Trends() {
       {state.kind === 'ready' && state.trends.checkup_count > 0 && (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Checkups in window
               </p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
                 {state.trends.checkup_count}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Alerts
               </p>
               <p
                 className={`mt-1 text-2xl font-bold ${
-                  state.trends.alert_count > 0 ? 'text-amber-600' : 'text-slate-900'
+                  state.trends.alert_count > 0
+                    ? 'text-amber-600'
+                    : 'text-slate-900 dark:text-white'
                 }`}
               >
                 {state.trends.alert_count}

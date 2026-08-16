@@ -9,7 +9,7 @@ Doctordrobe home-health analyzer. Full product docs live in the
 - React 18, `react-router-dom` (data router), plain controlled forms
 - TypeScript strict (`noUnusedLocals`, `noUnusedParameters`, …)
 - Tailwind 3.4 with a custom `brand` palette and animations
-- Vitest 2 + React Testing Library + Jest-DOM (26 tests)
+- Vitest 2 + React Testing Library + Jest-DOM (42 tests)
 - ESLint 9 flat config (typescript-eslint, react-hooks, prettier)
 
 ## Scripts
@@ -38,9 +38,12 @@ src/
   context/     UserProvider (bearer-token session)
   hooks/       useUser, useCheckup, useDeviceStatus (polling)
   components/  layout shell, ChatBubble, ReportTable, Toast, dialogs…
-  pages/       Welcome, Login, Home, Checkup, Report, History, Trends, Vault, Settings
+  pages/       Welcome, Login, Home, Checkup, Report, History, Trends, Community,
+               Vault, Calibration, Settings
   utils/       formatters, error messages
-tests/         welcome, login, checkup, trends, toast, confirm-dialog, useUser
+tests/         welcome, login, checkup, report, trends, history, settings,
+               community, notification-bell, calibration, toast,
+               confirm-dialog, useUser
 ```
 
 Every page has explicit loading, empty, and error states; non-2xx

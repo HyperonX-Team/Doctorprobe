@@ -13,7 +13,7 @@ export default function LoadingSpinner({ label = 'Loading…' }: LoadingSpinnerP
       data-testid="loading-spinner"
     >
       <span className="h-8 w-8 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
-      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
     </div>
   );
 }

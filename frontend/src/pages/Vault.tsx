@@ -65,8 +65,12 @@ export default function Vault() {
           id: c.id,
           created_at: c.created_at,
           overall_risk: c.overall_risk,
+          quality_grade: c.quality_grade,
           text_summary: c.text_summary,
           biomarkers: c.biomarkers,
+          analysis: c.analysis ?? null,
+          quality: c.quality ?? null,
+          note: c.note ?? null,
           is_shared: c.is_shared,
         })),
         encryption: {
@@ -101,8 +105,8 @@ export default function Vault() {
     <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vault</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Vault</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Your personal archive of encrypted reports.
           </p>
         </div>
@@ -117,7 +121,7 @@ export default function Vault() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Encryption at rest
         </p>
@@ -133,31 +137,35 @@ export default function Vault() {
       {state.kind === 'error' && (
         <div
           role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
         >
           {state.message}
         </div>
       )}
 
       {state.kind === 'ready' && state.checkups.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="text-sm font-medium text-slate-600">Your vault is empty</p>
-          <p className="mt-1 text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            Your vault is empty
+          </p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
             Completed checkups appear here automatically.
           </p>
         </div>
       )}
 
       {state.kind === 'ready' && state.checkups.length > 0 && (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900">
           {state.checkups.map((checkup) => (
             <li key={checkup.id} className="px-4 py-3" data-testid="vault-row">
-              <p className="text-sm font-semibold text-slate-800">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {formatDate(checkup.created_at)}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                 {checkup.biomarkers.length} biomarkers ·{' '}
                 {checkup.overall_risk.toUpperCase()} risk
+                {checkup.quality_grade ? ` · ${checkup.quality_grade}` : ''}
+                {checkup.note ? ' · 📝 noted' : ''}
                 {checkup.is_shared ? ' · shared' : ''}
               </p>
             </li>

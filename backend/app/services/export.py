@@ -13,6 +13,7 @@ any non-Latin-1 character is normalized to ASCII before rendering.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from fpdf import FPDF
@@ -233,6 +234,86 @@ def _trends_block(pdf: _ReportPdf, trends: dict[str, Any]) -> None:
         for alert in marker.get("alerts", []):
             pdf.multi_cell(0, 4, f"  - {_pdf_safe(alert['message'])}", new_x="LMARGIN")
         pdf.ln(1)
+
+
+async def build_account_export(db: AsyncSession, user: User) -> dict[str, Any]:
+    """Assemble the user's full personal data as a JSON-serializable dict.
+
+    GDPR-style export: profile, every checkup with its decrypted report
+    (including any note), share events, and session metadata. Nothing is
+    redacted — this is the user's own data, offered before account
+    deletion so nothing is lost silently.
+    """
+    from sqlalchemy import select
+
+    from app.models.session import Session
+    from app.models.share_event import ShareEvent
+
+    checkup_result = await db.execute(
+        select(Checkup)
+        .where(Checkup.user_id == user.id)
+        .order_by(Checkup.created_at.asc())
+    )
+    checkups = checkup_result.scalars().all()
+
+    share_result = await db.execute(
+        select(ShareEvent)
+        .join(Checkup, Checkup.id == ShareEvent.checkup_id)
+        .where(Checkup.user_id == user.id)
+        .order_by(ShareEvent.shared_at.asc())
+    )
+    share_events = share_result.scalars().all()
+
+    session_result = await db.execute(
+        select(Session).where(Session.user_id == user.id).order_by(Session.created_at.asc())
+    )
+    sessions = session_result.scalars().all()
+
+    return {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "profile": {
+            "id": str(user.id),
+            "email": user.email,
+            "age": user.age,
+            "sex": user.sex,
+            "height_cm": user.height_cm,
+            "weight_kg": user.weight_kg,
+            "activity_level": user.activity_level,
+            "share_data": user.share_data,
+            "token_balance": user.token_balance,
+            "device_id": user.device_id,
+            "reference_ranges": user.reference_ranges,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        },
+        "checkups": [
+            {
+                "id": str(checkup.id),
+                "created_at": checkup.created_at.isoformat(),
+                "overall_risk": checkup.overall_risk,
+                "summary": checkup.summary,
+                "quality_grade": checkup.quality_grade,
+                "is_shared": checkup.is_shared,
+                "report": crypto.decrypt_json(checkup.encrypted_data),
+            }
+            for checkup in checkups
+        ],
+        "share_events": [
+            {
+                "checkup_id": str(event.checkup_id),
+                "tokens_awarded": event.tokens_awarded,
+                "shared_at": event.shared_at.isoformat(),
+            }
+            for event in share_events
+        ],
+        "sessions": [
+            {
+                "created_at": session.created_at.isoformat(),
+                "expires_at": session.expires_at.isoformat(),
+                "revoked_at": session.revoked_at.isoformat() if session.revoked_at else None,
+            }
+            for session in sessions
+        ],
+    }
 
 
 async def build_clinician_pdf(

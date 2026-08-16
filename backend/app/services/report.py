@@ -129,6 +129,7 @@ class ReportService:
         report = analyzer.generate_report(
             profile=ReportService._profile_from_user(user),
             sensor_reading=snapshots,
+            reference_ranges=user.reference_ranges,
         )
 
         quality = report.get("quality")
@@ -144,6 +145,7 @@ class ReportService:
                     "biomarkers": report["biomarkers"],
                     "analysis": report["analysis"],
                     "quality": quality,
+                    "note": None,
                 }
             ),
         )

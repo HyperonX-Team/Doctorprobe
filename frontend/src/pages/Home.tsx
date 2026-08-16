@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useUser } from '../hooks/useUser';
 import { useDeviceStatus } from '../hooks/useDeviceStatus';
 import type { CheckupSummary } from '../types';
-import { formatDate, riskBadgeClasses } from '../utils/formatters';
+import { formatDate, qualityBadgeClasses, riskBadgeClasses } from '../utils/formatters';
 import { getErrorMessage } from '../utils/errors';
 import DeviceStatus from '../components/ui/DeviceStatus';
 
@@ -51,57 +51,75 @@ export default function Home() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Hello</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Hello</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Ready for today's checkup? Your last analysis was{' '}
           {latest ? formatDate(latest.created_at) : 'never'}.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Token balance
           </p>
-          <p className="mt-1 text-3xl font-bold text-slate-900">{user.token_balance}</p>
-          <p className="mt-1 text-xs text-slate-500">Earn more by sharing checkups</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
+            {user.token_balance}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Earn more by sharing checkups
+          </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Latest checkup
           </p>
           {state.kind === 'loading' ? (
-            <p className="mt-1 text-sm text-slate-500 animate-pulse-soft">Loading…</p>
+            <p className="mt-1 text-sm text-slate-500 animate-pulse-soft dark:text-slate-400">
+              Loading…
+            </p>
           ) : latest ? (
             <>
-              <span
-                className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${riskBadgeClasses(latest.overall_risk)}`}
-              >
-                {latest.overall_risk.toUpperCase()} risk
-              </span>
-              <p className="mt-2 line-clamp-2 text-xs text-slate-500">
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                <span
+                  className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${riskBadgeClasses(latest.overall_risk)}`}
+                >
+                  {latest.overall_risk.toUpperCase()} risk
+                </span>
+                {latest.quality_grade && (
+                  <span
+                    data-testid="home-quality"
+                    className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${qualityBadgeClasses(latest.quality_grade)}`}
+                  >
+                    {latest.quality_grade.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
                 {latest.summary}
               </p>
               <Link
                 to={`/report/${latest.id}`}
-                className="mt-2 inline-block text-xs font-semibold text-brand-700 hover:underline"
+                className="mt-2 inline-block text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300"
               >
                 View report →
               </Link>
             </>
           ) : (
             <>
-              <p className="mt-1 text-sm text-slate-500">No checkups yet</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                No checkups yet
+              </p>
               <Link
                 to="/checkup"
-                className="mt-2 inline-block text-xs font-semibold text-brand-700 hover:underline"
+                className="mt-2 inline-block text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300"
               >
                 Run your first →
               </Link>
             </>
           )}
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Device
           </p>
@@ -115,8 +133,10 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="font-semibold text-slate-800">What would you like to do?</h2>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="font-semibold text-slate-800 dark:text-slate-100">
+          What would you like to do?
+        </h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Link
             to="/checkup"
@@ -126,7 +146,7 @@ export default function Home() {
           </Link>
           <Link
             to="/history"
-            className="rounded-xl border border-slate-200 px-5 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 px-5 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             View history
           </Link>

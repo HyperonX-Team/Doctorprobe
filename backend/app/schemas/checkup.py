@@ -45,6 +45,8 @@ class AnalysisInfo(BaseModel):
     condition_number: float | None = None
     rank: int | None = None
     reconstruction_residual: float | None = None
+    # "default" | "personalized" — whether user reference ranges applied.
+    reference_source: str | None = None
 
 
 class MeasurementQuality(BaseModel):
@@ -68,6 +70,8 @@ class Report(BaseModel):
     biomarkers: list[Biomarker]
     analysis: AnalysisInfo | None = None
     quality: MeasurementQuality | None = None
+    # Optional user note, encrypted with the report (see PUT /{id}/note).
+    note: str | None = None
 
 
 class CheckupSummary(BaseModel):
@@ -92,6 +96,12 @@ class CheckupResponse(Report):
     summary: str
     created_at: datetime
     is_shared: bool
+
+
+class NoteUpdate(BaseModel):
+    """Payload for PUT /api/checkups/{id}/note."""
+
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class ShareResponse(BaseModel):

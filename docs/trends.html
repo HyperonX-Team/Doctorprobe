@@ -77,7 +77,9 @@
           </p>
 
           <h2 id="api">The API</h2>
-          <p><code>GET /api/trends?window_days=30</code> (auth required, 1-365 days):</p>
+          <p><code>GET /api/trends?window_days=30</code> (auth required, 1-365 days);
+          <code>GET /api/trends/export?window_days=30</code> downloads the same series
+          as CSV (one row per marker point).</p>
           <pre><code>{
   "window_days": 30,
   "checkup_count": 12,

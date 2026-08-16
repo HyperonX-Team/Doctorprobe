@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     #: A device is considered "connected" if it was seen within this window.
     DEVICE_STALE_SECONDS: int = 300
 
+    #: Days without a checkup before the in-app reminder fires (weekly dedupe).
+    NOTIFICATION_REMINDER_DAYS: int = 3
+
     #: Snapshots posted closer together than this are treated as one
     #: "burst" of the same strip (see app/services/spectral.py).
     READING_BURST_GAP_SECONDS: float = 45.0

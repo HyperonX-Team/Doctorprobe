@@ -1,10 +1,30 @@
 // Formatting helpers shared across pages.
 
-/** Format an ISO timestamp for display, e.g. "Jul 31, 2026 · 14:05". */
+/**
+ * Format an ISO timestamp for display, e.g. "Today · 14:05" or
+ * "Yesterday · 09:30" or "Jul 29, 2026 · 18:20".
+ */
 export function formatDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
     return iso;
+  }
+  const now = new Date();
+  const time = date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round(
+    (startOfToday.getTime() - startOfDate.getTime()) / 86400000,
+  );
+
+  if (dayDiff === 0) {
+    return `Today · ${time}`;
+  }
+  if (dayDiff === 1) {
+    return `Yesterday · ${time}`;
   }
   return date.toLocaleString(undefined, {
     year: 'numeric',
@@ -43,6 +63,20 @@ export function stateBadgeClasses(state: 'low' | 'normal' | 'high'): string {
       return 'bg-emerald-100 text-emerald-800';
     case 'high':
       return 'bg-rose-100 text-rose-800';
+  }
+}
+
+/** Tailwind badge classes for measurement quality grades. */
+export function qualityBadgeClasses(grade: string): string {
+  switch (grade) {
+    case 'good':
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+    case 'fair':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+    case 'poor':
+      return 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300';
+    default:
+      return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
   }
 }
 

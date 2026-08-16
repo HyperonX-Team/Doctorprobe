@@ -91,6 +91,44 @@ _REFERENCE_RANGES: dict[str, tuple[str, float, float]] = {
     "siga": ("mg/dL", 5.0, 25.0),
 }
 
+# Marker keys whose ranges a user may personalize (all five).
+PERSONALIZABLE_KEYS = tuple(_REFERENCE_RANGES.keys())
+
+
+def resolve_ranges(
+    overrides: dict[str, dict[str, float]] | None,
+) -> tuple[dict[str, tuple[str, float, float]], bool]:
+    """Merge user reference-range overrides onto the analyzer defaults.
+
+    Returns ``(ranges, personalized)`` where ``personalized`` is True when
+    at least one marker had a valid override applied. Unknown markers and
+    malformed specs are ignored; missing low/high fall back to the
+    default so a partial override never breaks the panel.
+
+    The merged ranges drive the report's ``ref_low``/``ref_high`` and the
+    state classification, so a personalized target changes what "normal"
+    means for that user.
+    """
+    ranges: dict[str, tuple[str, float, float]] = {
+        key: value for key, value in _REFERENCE_RANGES.items()
+    }
+    personalized = False
+    for key, spec in (overrides or {}).items():
+        if key not in ranges or not isinstance(spec, dict):
+            continue
+        unit, low, high = ranges[key]
+        try:
+            next_low = float(spec.get("low", low))
+            next_high = float(spec.get("high", high))
+        except (TypeError, ValueError):
+            continue
+        if not (0.0 < next_low < next_high):
+            continue
+        if next_low != low or next_high != high:
+            personalized = True
+        ranges[key] = (unit, next_low, next_high)
+    return ranges, personalized
+
 _RISK_WEIGHTS = {
     "glucose": 0.25,
     "crp": 0.30,
@@ -394,13 +432,17 @@ def _solve_spectral(readings: list[dict[str, Any]]) -> tuple[dict[str, float], d
     return bases, standard_errors, meta
 
 
-def _confidence(key: str, standard_error: float) -> float:
+def _confidence(
+    key: str,
+    standard_error: float,
+    ranges: dict[str, tuple[str, float, float]] | None = None,
+) -> float:
     """Identifiability score in 0..1 from the least-squares standard error.
 
     Confidence falls as the error grows relative to the reference span;
     a marker whose direction the measurement could not resolve scores low.
     """
-    _, ref_low, ref_high = _REFERENCE_RANGES[key]
+    _, ref_low, ref_high = (ranges or _REFERENCE_RANGES)[key]
     span = max(ref_high - ref_low, 1e-9)
     return round(min(max(1.0 / (1.0 + standard_error / span), 0.0), 1.0), 3)
 
@@ -426,9 +468,14 @@ def _state_for(value: float, ref_low: float, ref_high: float) -> str:
     return "normal"
 
 
-def _build_biomarker(key: str, value: float, confidence: float) -> dict[str, Any]:
+def _build_biomarker(
+    key: str,
+    value: float,
+    confidence: float,
+    ranges: dict[str, tuple[str, float, float]] | None = None,
+) -> dict[str, Any]:
     """Build the public biomarker record with a human-friendly message."""
-    unit, ref_low, ref_high = _REFERENCE_RANGES[key]
+    unit, ref_low, ref_high = (ranges or _REFERENCE_RANGES)[key]
     state = _state_for(value, ref_low, ref_high)
     name = _FRIENDLY_NAMES[key]
 
@@ -550,6 +597,7 @@ def _measurement_quality(
 def generate_report(
     profile: dict[str, Any],
     sensor_reading: dict[str, Any] | list[dict[str, Any]],
+    reference_ranges: dict[str, dict[str, float]] | None = None,
 ) -> dict[str, Any]:
     """Generate a deterministic report from a real device reading (or burst).
 
@@ -559,26 +607,32 @@ def generate_report(
             temperature_c, humidity_pct) or a list of snapshots captured
             as a burst. Required — the report is always derived from
             physical sensor data.
+        reference_ranges: Optional per-marker {"low": .., "high": ..}
+            overrides that replace the analyzer defaults for this user.
 
     Returns:
         Dict with ``overall_risk``, ``summary``, ``text_summary``,
-        ``biomarkers`` (each carrying an identifiability ``confidence``)
-        and ``analysis`` (method, prior source, burst size, conditioning).
+        ``biomarkers`` (each carrying an identifiability ``confidence``
+        and the effective reference bounds) and ``analysis`` (method,
+        prior source, burst size, conditioning, reference source).
     """
     readings = _as_reading_list(sensor_reading)
+    ranges, personalized = resolve_ranges(reference_ranges)
 
     bases, standard_errors, meta = _solve_spectral(readings)
     deltas = _profile_adjustments(profile)
 
     biomarkers = []
-    for key, (unit, ref_low, ref_high) in _REFERENCE_RANGES.items():
+    for key, (unit, ref_low, ref_high) in ranges.items():
         value = bases[key] + deltas.get(key, 0.0)
         if key == "ph":
             value = min(max(value, 5.0), 8.5)
         else:
             value = _clamp_to_report_range(value, ref_low, ref_high)
         biomarkers.append(
-            _build_biomarker(key, value, _confidence(key, standard_errors[key]))
+            _build_biomarker(
+                key, value, _confidence(key, standard_errors[key], ranges), ranges
+            )
         )
 
     # Weighted risk score: each out-of-range marker contributes its
@@ -624,6 +678,7 @@ def generate_report(
         "condition_number": round(meta["condition_number"], 3),
         "rank": meta["rank"],
         "reconstruction_residual": round(meta["reconstruction_residual"], 4),
+        "reference_source": "personalized" if personalized else "default",
     }
 
     quality = _measurement_quality(readings, meta)

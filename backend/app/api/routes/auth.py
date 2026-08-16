@@ -11,14 +11,15 @@ Login is rate-limited per IP to slow down credential stuffing.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,6 +154,9 @@ async def register(
         )
 
     profile = payload.model_dump(exclude={"email", "password"})
+    # Input hygiene: a device id with stray whitespace would never match
+    # the firmware's configured value.
+    profile["device_id"] = profile.get("device_id", "").strip() or "doctordrobe_demo_001"
     user = User(**profile, email=email, password_hash=hash_password(payload.password))
     db.add(user)
     try:
@@ -235,6 +239,8 @@ async def update_me(
 ) -> User:
     """Partially update the authenticated user's profile."""
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "device_id" and isinstance(value, str):
+            value = value.strip()
         setattr(current, field, value)
     try:
         await db.commit()
@@ -310,13 +316,53 @@ async def change_password(
     response_model_exclude={"user_id"},
 )
 async def my_checkups(
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
-) -> list[Checkup]:
-    """List the authenticated user's checkups (summaries, newest first)."""
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[CheckupSummary]:
+    """List the authenticated user's checkups (summaries, newest first).
+
+    Supports offset/limit pagination; the total count is returned in the
+    ``X-Total-Count`` response header so the UI can page through long
+    histories without loading everything at once.
+    """
+    total = await db.scalar(
+        select(func.count()).select_from(Checkup).where(Checkup.user_id == current.id)
+    )
     result = await db.execute(
         select(Checkup)
         .where(Checkup.user_id == current.id)
         .order_by(Checkup.created_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    response.headers["X-Total-Count"] = str(total or 0)
+    return rows
+
+
+@router.get("/me/export", status_code=status.HTTP_200_OK)
+async def export_me(
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> Response:
+    """Export the user's complete personal data as a JSON download.
+
+    Offered before account deletion so nothing is lost silently
+    (export-before-delete). Returns every checkup with its decrypted
+    report, share events, and session metadata.
+    """
+    from app.services.export import build_account_export
+
+    payload = await build_account_export(db, current)
+    return Response(
+        content=json.dumps(payload, indent=2, ensure_ascii=False),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="doctordrobe-data-{current.id}.json"'
+            )
+        },
+    )

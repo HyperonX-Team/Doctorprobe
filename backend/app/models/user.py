@@ -6,12 +6,13 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Uuid
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, utcnow
 
 if TYPE_CHECKING:
+    from app.models.notification import Notification
     from app.models.session import Session
 
 
@@ -39,6 +40,9 @@ class User(Base):
     device_id: Mapped[str] = mapped_column(
         String(64), default="doctordrobe_demo_001", nullable=False
     )
+    # Personalized biomarker reference ranges, e.g.
+    # {"glucose": {"low": 0.5, "high": 7.0}}. None = analyzer defaults.
+    reference_ranges: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
@@ -47,5 +51,8 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     sessions: Mapped[List["Session"]] = relationship(  # noqa: F821
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    notifications: Mapped[List["Notification"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )

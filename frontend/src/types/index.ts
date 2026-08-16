@@ -18,7 +18,14 @@ export interface User {
   share_data: boolean;
   token_balance: number;
   device_id: string;
+  reference_ranges: Record<string, ReferenceRange> | null;
   created_at: string;
+}
+
+/** Per-marker personalized reference bounds (backend analyzer defaults if null). */
+export interface ReferenceRange {
+  low: number;
+  high: number;
 }
 
 /** Backend: app/schemas/user.py -> UserUpdate */
@@ -32,6 +39,7 @@ export type UserUpdate = Partial<
     | 'activity_level'
     | 'share_data'
     | 'device_id'
+    | 'reference_ranges'
   >
 >;
 
@@ -97,6 +105,7 @@ export interface AnalysisInfo {
   condition_number?: number | null;
   rank?: number | null;
   reconstruction_residual?: number | null;
+  reference_source?: string | null;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupSummary */
@@ -116,6 +125,7 @@ export interface Checkup extends CheckupSummary {
   biomarkers: Biomarker[];
   analysis?: AnalysisInfo;
   quality?: MeasurementQuality;
+  note?: string | null;
 }
 
 /** Backend: app/schemas/checkup.py -> CheckupCreateResponse */
@@ -155,6 +165,17 @@ export interface DeviceStatus {
   last_seen: string | null;
 }
 
+/** Backend: app/schemas/device.py -> DeviceBaselineResponse */
+export interface DeviceBaseline {
+  id: string;
+  device_id: string;
+  rgb_r: number;
+  rgb_g: number;
+  rgb_b: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Backend: app/services/calibration_stats.py -> build_calibration_stats payload */
 export interface AnalyteCalibrationStats {
   name: string;
@@ -180,6 +201,47 @@ export interface CalibrationStats {
     model_version: string | null;
     trained_at: string | null;
   };
+}
+
+/** Backend: app/schemas/community.py -> CommunityInsightsResponse */
+export interface CommunityMarkerInsight {
+  key: string;
+  name: string;
+  unit: string;
+  user_latest: number | null;
+  user_state: string | null;
+  cohort_count: number;
+  cohort_mean: number | null;
+  cohort_std: number | null;
+  cohort_p10: number | null;
+  cohort_p50: number | null;
+  cohort_p90: number | null;
+  user_percentile: number | null;
+  ref_low: number | null;
+  ref_high: number | null;
+}
+
+export interface CommunityInsights {
+  cohort_checkups: number;
+  cohort_users: number;
+  min_cohort: number;
+  similar_profile: { sex: string; age_band: string; activity_level: string } | null;
+  similar_profile_count: number;
+  markers: Record<string, CommunityMarkerInsight>;
+}
+
+/** Backend: app/schemas/notification.py -> NotificationResponse */
+export interface AppNotification {
+  id: string;
+  kind: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface NotificationsResponse {
+  unread_count: number;
+  items: AppNotification[];
 }
 
 /** Backend: app/services/trends.py -> build_trends payload */

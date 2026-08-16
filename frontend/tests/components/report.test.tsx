@@ -21,6 +21,7 @@ const mockUser: User = {
   share_data: false,
   token_balance: 0,
   device_id: 'doctordrobe_demo_001',
+  reference_ranges: null,
   created_at: '2026-07-31T10:00:00Z',
 };
 
@@ -159,6 +160,23 @@ describe('Report', () => {
       expect(calls.some((url) => url.includes('/api/checkups/checkup-1/export'))).toBe(
         true,
       );
+    });
+  });
+
+  it('saves a note to the checkup', async () => {
+    const user = userEvent.setup();
+    renderReport(makeCheckup(undefined));
+    await screen.findByText('Salivary Glucose');
+
+    await user.type(screen.getByTestId('report-note-input'), 'Felt great today');
+    await user.click(screen.getByTestId('report-note-save'));
+
+    await waitFor(() => {
+      const calls = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.map(([input]) => String(input));
+      const noteCall = calls.find((url) => url.includes('/api/checkups/checkup-1/note'));
+      expect(noteCall).toBeTruthy();
     });
   });
 });

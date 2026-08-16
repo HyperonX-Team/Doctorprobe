@@ -73,13 +73,15 @@
   api/         typed fetch client + endpoint constants (no secrets)
   types/       mirrors the backend Pydantic schemas exactly
   context/     UserProvider - bearer-token session
-  hooks/       useUser, useCheckup, useDeviceStatus (polling)
-  components/  layout shell, ChatBubble, ReportTable, Toast, dialogs…
+  hooks/       useUser, useCheckup, useDeviceStatus (polling), useTheme (dark mode)
+  components/  layout shell, ChatBubble, ReportTable, Toast, dialogs,
+               NotificationBell (in-app notification center)
   pages/       Welcome, Login, Home, Checkup, Report, History,
-               Trends, Vault, Calibration, Settings
+               Trends, Community, Vault, Calibration, Settings
   utils/       formatters, error messages
-tests/         welcome, login, checkup, report, trends, calibration,
-               toast, confirm-dialog, useUser</code></pre>
+tests/         welcome, login, checkup, report, trends, history, settings,
+               community, notification-bell, calibration, toast,
+               confirm-dialog, useUser</code></pre>
 
           <h2 id="pages">The pages</h2>
           <table>
@@ -91,12 +93,13 @@ tests/         welcome, login, checkup, report, trends, calibration,
               <tr><td><code>/login</code></td><td>Email + password sign-in.</td></tr>
               <tr><td><code>/</code></td><td>Home: token balance, latest checkup, device status.</td></tr>
               <tr><td><code>/checkup</code></td><td>Run an analysis from the latest device reading.</td></tr>
-              <tr><td><code>/report/:checkupId</code></td><td>Chat-style report, quality banner, share + PDF export.</td></tr>
-              <tr><td><code>/history</code></td><td>All checkups, newest first, with delete.</td></tr>
-              <tr><td><code>/trends</code></td><td>Per-marker SVG charts, stats, and alerts over 30/90/365 days.</td></tr>
+              <tr><td><code>/report/:checkupId</code></td><td>Chat-style report, quality banner, notes, share + PDF export.</td></tr>
+              <tr><td><code>/history</code></td><td>Paginated checkup list (load more), quality badges, delete.</td></tr>
+              <tr><td><code>/trends</code></td><td>Per-marker SVG charts, stats, alerts over 30/90/365 days, CSV export.</td></tr>
+              <tr><td><code>/community</code></td><td>Community Insights: anonymized cohort comparisons from shared checkups.</td></tr>
               <tr><td><code>/vault</code></td><td>Archive view + JSON export with encryption fingerprint.</td></tr>
               <tr><td><code>/calibration</code></td><td>Sample coverage per analyte, model status, CSV export.</td></tr>
-              <tr><td><code>/settings</code></td><td>Email, device id, sharing toggle, change password, delete account.</td></tr>
+              <tr><td><code>/settings</code></td><td>Profile + device, personalized reference ranges, device detail, export data, change password, delete account.</td></tr>
             </tbody>
           </table>
 

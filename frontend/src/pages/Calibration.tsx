@@ -99,7 +99,7 @@ export default function Calibration() {
     return (
       <section
         key={key}
-        className="rounded-xl border border-slate-200 bg-white p-5"
+        className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
         data-testid={`calibration-analyte-${key}`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -141,13 +141,15 @@ export default function Calibration() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Calibration</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          Calibration
+        </h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Collect labeled samples to retrain SaliNet on real measurements.
         </p>
       </div>
 
-      <div className="rounded-xl border border-brand-200 bg-brand-50 p-5">
+      <div className="rounded-xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-800 dark:bg-brand-950">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
           How it works
         </p>
@@ -169,7 +171,7 @@ export default function Calibration() {
       {state.kind === 'error' && (
         <div
           role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
         >
           {state.message}
         </div>
@@ -183,7 +185,7 @@ export default function Calibration() {
             )}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Deployed model
             </p>

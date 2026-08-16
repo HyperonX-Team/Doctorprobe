@@ -4,9 +4,17 @@ A home-health analyzer: an ESP32 sensor device, a FastAPI backend, and a
 React SPA. Saliva strips are read by an RGB spectrometer; the backend
 models the strip's chromogen colour with Beer–Lambert reflectance
 chemistry into a panel of saliva-valid analytes (glucose, CRP, cortisol,
-pH, secretory IgA), adjusts for the user profile, encrypts the report at
-rest with Fernet, and presents it in a chat-style UI. Every checkup is
-derived from a real device reading.
+pH, secretory IgA), adjusts for the user profile (including
+personalized reference ranges), encrypts the report at rest with Fernet,
+and presents it in a chat-style UI. Every checkup is derived from a real
+device reading.
+
+**v2.0 — Personal Health Insights** adds: the anonymized **Community
+Insights** marketplace (cohort comparisons from shared checkups),
+**personalized reference ranges**, encrypted **checkup notes**, **trends
+CSV export**, **history pagination**, **dark mode**, an in-app
+**notification center**, and **account data export** (export-before-
+delete).
 
 > **Not a medical device.** SaliNet (the sensor model) is trained on
 > synthetic data until you collect real calibration samples with the
@@ -141,7 +149,8 @@ account deletion). Login is rate-limited per IP
 | PUT | `/api/auth/me` | `UserUpdate` (partial) | `UserResponse` |
 | DELETE | `/api/auth/me` | — | `{"detail": ...}` |
 | POST | `/api/auth/change-password` | `ChangePasswordRequest` | `{"detail": ...}` |
-| GET | `/api/auth/me/checkups` | — | `CheckupSummary[]` |
+| GET | `/api/auth/me/checkups` | `?limit=&offset=` | `CheckupSummary[]` + `X-Total-Count` |
+| GET | `/api/auth/me/export` | — | account data as a JSON download |
 
 **Register**
 
@@ -189,6 +198,7 @@ user is resolved from the token.
 | ------ | ---- | ------------ | ------- |
 | POST | `/api/checkups` | — | `CheckupCreated` (201) |
 | GET | `/api/checkups/{id}` | — | `CheckupResponse` (decrypted) |
+| PUT | `/api/checkups/{id}/note` | `NoteUpdate` | `CheckupResponse` (note saved) |
 | DELETE | `/api/checkups/{id}` | — | `{"detail": ...}` |
 | POST | `/api/checkups/{id}/share` | — | `ShareResponse` |
 
@@ -196,13 +206,18 @@ user is resolved from the token.
 reading and returns **409** when no reading exists yet. Sharing awards
 `TOKEN_REWARD` (default 5) tokens once per checkup; a second share
 returns **409**. Reading or sharing another user's checkup returns
-**403**.
+**403**. `PUT /{id}/note` stores a free-text note **inside the encrypted
+report payload**, so it is protected at rest exactly like the biomarker
+data; pass an empty string to clear it. Every checkup also generates
+in-app notifications (poor-quality readings, trend alerts, token
+rewards).
 
 ### Trends
 
 | Method | Path | Query | Returns |
 | ------ | ---- | ----- | ------- |
 | GET | `/api/trends` | `?window_days=` (1–365, default 30) | per-marker series, stats, alerts |
+| GET | `/api/trends/export` | `?window_days=` | series as a CSV download |
 
 `GET /api/trends` decrypts the authenticated user's own checkups and
 returns, per marker: a time series (oldest→newest), window statistics,
@@ -210,7 +225,34 @@ and deterministic alerts — `rising_trend` / `falling_trend` (last three
 values moving together), `deviation_from_baseline` (> 2 standard
 deviations from the user's earlier readings), and
 `repeated_out_of_range` / `new_out_of_range`. Alerts are conservative
-heads-ups, never a diagnosis.
+heads-ups, never a diagnosis. `GET /api/trends/export` renders the same
+series as CSV (one row per marker point).
+
+### Community Insights
+
+| Method | Path | Returns |
+| ------ | ---- | ------- |
+| GET | `/api/shares/insights` | anonymized cohort aggregates + "you vs similar profiles" |
+
+`GET /api/shares/insights` aggregates **shared** checkups of *other*
+users (server-side only — raw community rows never leave the server)
+into per-marker means, standard deviations and percentiles, and compares
+the authenticated user's latest value against the cohort filtered by
+sex, age band (±5 years) and activity level. Comparisons are only
+reported once the cohort has at least 3 shared checkups (`min_cohort`).
+
+### Notifications
+
+| Method | Path | Returns |
+| ------ | ---- | ------- |
+| GET | `/api/notifications` | `NotificationsResponse` (items + unread count) |
+| POST | `/api/notifications/read` | refreshed list, all marked read |
+
+Notifications are generated deterministically from the user's own data
+(poor measurement quality, trend alerts, checkup reminders, token
+rewards) and deduplicated per user, so polling is idempotent. Weekly
+checkup reminders are computed lazily on read — no background scheduler
+is required.
 
 ### Devices
 
@@ -271,7 +313,11 @@ literature-plausible ranges:
 ```
 
 Reports are encrypted with Fernet (`encrypted_data`) before storage; the
-`GET /api/checkups/{id}` endpoint returns the decrypted payload.
+`GET /api/checkups/{id}` endpoint returns the decrypted payload. If the
+user has **personalized reference ranges** (Settings → Personalized
+reference ranges), the report's `ref_low`/`ref_high` come from those
+bounds instead of the defaults and `analysis.reference_source` is set to
+`"personalized"` — so "normal" means *their* normal.
 
 Every report also carries a **measurement quality** verdict
 (`quality.grade` ∈ `good` | `fair` | `poor`, plus human-readable
@@ -348,8 +394,8 @@ enabled), `GET /api/calibration/samples`, `GET /api/calibration/export`,
 
 | Suite | Command |
 | ----- | ------- |
-| Backend (pytest, 68 tests) | `cd backend && .venv/Scripts/python -m pytest` |
-| Frontend (Vitest + RTL, 26 tests) | `cd frontend && npm test` |
+| Backend (pytest, 91 tests) | `cd backend && .venv/Scripts/python -m pytest` |
+| Frontend (Vitest + RTL, 42 tests) | `cd frontend && npm test` |
 | Frontend lint + typecheck | `cd frontend && npm run lint && npm run build` |
 | Firmware compile | `arduino-cli compile --fqbn esp32:esp32:esp32 arduino/doctordrobe` |
 

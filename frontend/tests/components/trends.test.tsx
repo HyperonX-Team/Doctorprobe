@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
 import Trends from '../../src/pages/Trends';
 import { UserProvider, useUserContext } from '../../src/context/UserContext';
+import { ToastProvider } from '../../src/components/ui/Toast';
 import type { TrendsResponse, User } from '../../src/types';
 
 const API = 'http://localhost:8000';
@@ -22,6 +23,7 @@ const mockUser: User = {
   share_data: false,
   token_balance: 0,
   device_id: 'doctordrobe_demo_001',
+  reference_ranges: null,
   created_at: '2026-07-31T10:00:00Z',
 };
 
@@ -129,11 +131,13 @@ function renderTrends() {
   localStorage.setItem('doctordrobe_token', 'token-abc');
   return render(
     <UserProvider>
-      <MemoryRouter initialEntries={['/trends']}>
-        <AuthedHarness>
-          <Trends />
-        </AuthedHarness>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/trends']}>
+          <AuthedHarness>
+            <Trends />
+          </AuthedHarness>
+        </MemoryRouter>
+      </ToastProvider>
     </UserProvider>,
   );
 }

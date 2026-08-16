@@ -19,7 +19,7 @@ export default function ChatBubble({ role, children }: ChatBubbleProps) {
         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? 'rounded-br-sm bg-brand-600 text-white'
-            : 'rounded-bl-sm border border-slate-200 bg-white text-slate-800'
+            : 'rounded-bl-sm border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
         }`}
       >
         {children}

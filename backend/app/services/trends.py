@@ -1,5 +1,8 @@
 """Longitudinal trends: per-marker time series, statistics, and alerts.
 
+Also builds a CSV export of the same data (``build_trends_csv``) so the
+user can pull their series into a spreadsheet.
+
 A single reading is a snapshot; a sequence of checkups is a signal. This
 service decrypts a user's checkups, builds a per-marker time series over
 a window, and derives explainable, deterministic alerts:
@@ -240,3 +243,36 @@ async def build_trends(
         "alert_count": alert_count,
         "markers": markers,
     }
+
+
+async def build_trends_csv(
+    db: AsyncSession, user_id: Any, window_days: int
+) -> str:
+    """Render the trends payload as CSV (date, marker, value, unit, state).
+
+    One row per (checkup, marker) point, oldest first, matching the
+    ``build_trends`` payload exactly — the export is just the same
+    series in spreadsheet form.
+    """
+    import csv
+    import io
+
+    trends = await build_trends(db, user_id, window_days)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["date", "marker", "value", "unit", "state"])
+    for key in MARKER_ORDER:
+        marker = trends["markers"][key]
+        for point in marker.get("points", []):
+            writer.writerow(
+                [
+                    point["date"].date().isoformat()
+                    if hasattr(point["date"], "date")
+                    else str(point["date"])[:10],
+                    marker["name"],
+                    f"{point['value']:.2f}",
+                    marker["unit"],
+                    point["state"],
+                ]
+            )
+    return buffer.getvalue()

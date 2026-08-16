@@ -14,9 +14,9 @@ export default function ReportTable({ biomarkers }: ReportTableProps) {
   const visible = expanded ? biomarkers : biomarkers.slice(0, 3);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <table className="w-full text-left text-sm" data-testid="report-table">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
           <tr>
             <th scope="col" className="px-4 py-2.5 font-semibold">
               Biomarker
@@ -35,14 +35,16 @@ export default function ReportTable({ biomarkers }: ReportTableProps) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {visible.map((marker) => (
             <tr key={marker.name}>
-              <td className="px-4 py-3 font-medium text-slate-800">{marker.name}</td>
-              <td className="px-4 py-3 text-slate-700">
+              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                {marker.name}
+              </td>
+              <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
                 {formatNumber(marker.value)} {marker.unit}
               </td>
-              <td className="px-4 py-3 text-slate-500">
+              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                 {marker.ref_low != null && marker.ref_high != null
                   ? `${formatNumber(marker.ref_low)} – ${formatNumber(marker.ref_high)}`
                   : '—'}
@@ -54,7 +56,7 @@ export default function ReportTable({ biomarkers }: ReportTableProps) {
                   {marker.state}
                 </span>
               </td>
-              <td className="px-4 py-3 text-slate-500">
+              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                 {marker.confidence != null
                   ? `${Math.round(marker.confidence * 100)}%`
                   : '—'}

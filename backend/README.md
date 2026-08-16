@@ -55,7 +55,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Tests (68): `python -m pytest`. They run against an in-memory async
+Tests (91): `python -m pytest`. They run against an in-memory async
 SQLite database — no services required.
 
 ## SaliNet sensor model
